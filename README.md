@@ -1,36 +1,19 @@
 # asuswrt_k2p
+#### How to build in ubuntu 18.04 LTS:
+``` bash
+sudo apt-get install libncurses5 libncurses5-dev m4 bison gawk flex libstdc++-4.8-dev g++-multilib g++ gengetopt git gitk zlib1g-dev autoconf autopoint libtool shtool autogen mtd-utils intltool sharutils docbook-xsl-* libstdc++5 texinfo dos2unix xsltproc binutils u-boot-tools device-tree-compiler python qemu gperf liblzo2-dev uuid-dev build-essential lzma-dev liblzma-dev lzma patch cmake intltool libglib2.0-dev gtk-doc-tools libc6-i386 lib32stdc++6 lib32z1 libelf1:i386 lib32ncurses5 libc6-dev-i386
+```
 
-#### Description
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+``` bash
+git clone https://gitee.com/ferhung-mtk/asuswrt_k2p.git
+```
+``` bash
+cd asuswrt_k2p
 
-#### Software Architecture
-Software architecture description
+```
 
-#### Installation
+``` bash
+./build
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+```
 
-#### Instructions
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Contribution
-
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
-
-
-#### Gitee Feature
-
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
