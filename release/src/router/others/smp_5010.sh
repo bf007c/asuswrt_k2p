@@ -27,8 +27,8 @@ if [ $OPTIMIZED_FOR == "wifi" ]; then
 		echo 8 > /proc/irq/20/smp_affinity #SDXC
 		echo 8 > /proc/irq/22/smp_affinity #USB
 
+		echo 3 > /sys/class/net/rax0/queues/rx-0/rps_cpus
 		echo 3 > /sys/class/net/ra0/queues/rx-0/rps_cpus
-		echo 3 > /sys/class/net/rai0/queues/rx-0/rps_cpus
 		echo 3 > /sys/class/net/apcli0/queues/rx-0/rps_cpus
 		echo 3 > /sys/class/net/apclii0/queues/rx-0/rps_cpus
 		echo 3 > /sys/class/net/wds0/queues/rx-0/rps_cpus
@@ -39,7 +39,7 @@ if [ $OPTIMIZED_FOR == "wifi" ]; then
 		echo 3 > /sys/class/net/wdsi1/queues/rx-0/rps_cpus
 		echo 3 > /sys/class/net/wdsi2/queues/rx-0/rps_cpus
 		echo 3 > /sys/class/net/wdsi3/queues/rx-0/rps_cpus
-		if [ -d "/sys/class/net/rai0" ]; then
+		if [ -d "/sys/class/net/ra0" ]; then
 			echo 5 > /sys/class/net/eth2/queues/rx-0/rps_cpus
 			echo 5 > /sys/class/net/eth3/queues/rx-0/rps_cpus
 			echo "eth2/eth3 RPS: CPU0/2"
@@ -59,8 +59,8 @@ if [ $OPTIMIZED_FOR == "wifi" ]; then
 		echo 1 > /proc/irq/20/smp_affinity #SDXC
 		echo 1 > /proc/irq/22/smp_affinity #USB
 
-		echo 2 > /sys/class/net/ra0/queues/rx-0/rps_cpus
-		echo 1 > /sys/class/net/rai0/queues/rx-0/rps_cpus
+		echo 2 > /sys/class/net/rax0/queues/rx-0/rps_cpus
+		echo 1 > /sys/class/net/ra0/queues/rx-0/rps_cpus
 		echo 2 > /sys/class/net/eth2/queues/rx-0/rps_cpus
 		echo 2 > /sys/class/net/eth3/queues/rx-0/rps_cpus
 
@@ -77,8 +77,8 @@ elif [ $OPTIMIZED_FOR == "storage" ]; then
 		echo 4 > /proc/irq/20/smp_affinity #SDXC
 		echo 4 > /proc/irq/22/smp_affinity #USB
 
+		echo 2 > /sys/class/net/rax0/queues/rx-0/rps_cpus
 		echo 2 > /sys/class/net/ra0/queues/rx-0/rps_cpus
-		echo 2 > /sys/class/net/rai0/queues/rx-0/rps_cpus
 		echo 2 > /sys/class/net/eth2/queues/rx-0/rps_cpus
 		echo 2 > /sys/class/net/eth3/queues/rx-0/rps_cpus
 	elif [ $NUM_OF_CPU == "2" ]; then
@@ -90,8 +90,8 @@ elif [ $OPTIMIZED_FOR == "storage" ]; then
 		echo 1 > /proc/irq/20/smp_affinity #SDXC
 		echo 1 > /proc/irq/22/smp_affinity #USB
 
+		echo 1 > /sys/class/net/rax0/queues/rx-0/rps_cpus
 		echo 1 > /sys/class/net/ra0/queues/rx-0/rps_cpus
-		echo 1 > /sys/class/net/rai0/queues/rx-0/rps_cpus
 		echo 1 > /sys/class/net/eth2/queues/rx-0/rps_cpus
 		echo 1 > /sys/class/net/eth3/queues/rx-0/rps_cpus
 

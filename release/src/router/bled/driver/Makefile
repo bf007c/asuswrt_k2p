@@ -5,7 +5,7 @@ obj-m := bled.o
 
 bled-objs := common.o check-netdev.o check-interrupt.o
 
-bled-objs += $(if $(RTCONFIG_USB),check-usbbus.o)
+#bled-objs += $(if $(RTCONFIG_USB),check-usbbus.o)
 bled-objs += $(if $(CONFIG_GPIOLIB),gpio-gpiolib.o)
 
 QCA8337_MODEL_LIST = "RT-AC55U RT-AC55UHP 4G-AC55U PL-AC56 PL-AC66U MAP-AC1750"
