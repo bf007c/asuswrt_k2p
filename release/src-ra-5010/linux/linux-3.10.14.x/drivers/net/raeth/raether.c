@@ -33,12 +33,7 @@
 #else
 #include <linux/libata-compat.h>
 #endif
-
-#if defined(CONFIG_ARCH_MT7623)
-#include <linux/kthread.h>
-#include <linux/delay.h>
-#endif
-
+ 
 #include "ra2882ethreg.h"
 #include "raether.h"
 #include "ra_mac.h"
@@ -54,19 +49,14 @@
 #if defined (CONFIG_RA_HW_NAT) || defined (CONFIG_RA_HW_NAT_MODULE)
 #include "../../../net/nat/hw_nat/ra_nat.h"
 #endif
-#if defined(CONFIG_RAETH_PDMA_DVT)
-#include "dvt/raether_pdma_dvt.h"
-#endif  /* CONFIG_RAETH_PDMA_DVT */
-#if defined (CONFIG_ARCH_MT7623) 
-#include <mach/eint.h>
-#endif
+
 #if defined (TASKLET_WORKQUEUE_SW)
 int init_schedule;
 int working_schedule;
 #endif
 
 #if defined (CONFIG_RALINK_RT6855) || defined (CONFIG_RALINK_RT6855A) || \
-    defined (CONFIG_RALINK_MT7620)|| defined (CONFIG_RALINK_MT7621) || defined(CONFIG_ARCH_MT7623)
+    defined (CONFIG_RALINK_MT7620)|| defined (CONFIG_RALINK_MT7621)
 static void esw_link_status_changed(int port_no, void *dev_id);
 #endif
 
@@ -85,20 +75,41 @@ static int rt2880_eth_recv(struct net_device* dev);
 #if !defined(CONFIG_RA_NAT_NONE)
 /* bruce+
  */
-int ra_sw_nat_hook_wifi = 1;	// ASUS_EXT
-EXPORT_SYMBOL(ra_sw_nat_hook_wifi);	//ASUS_EXT
+int ra_sw_nat_hook_wifi = 1;
+EXPORT_SYMBOL(ra_sw_nat_hook_wifi);
+
 extern int (*ra_sw_nat_hook_rx)(struct sk_buff *skb);
 extern int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no);
 #endif
 
+#if defined(CONFIG_RA_CLASSIFIER)||defined(CONFIG_RA_CLASSIFIER_MODULE)
+/* Qwert+
+ */
+#include <asm/mipsregs.h>
+extern int (*ra_classifier_hook_tx)(struct sk_buff *skb, unsigned long cur_cycle);
+extern int (*ra_classifier_hook_rx)(struct sk_buff *skb, unsigned long cur_cycle);
+#endif /* CONFIG_RA_CLASSIFIER */
 
+#if defined (CONFIG_RALINK_RT3052_MP2)
+int32_t mcast_rx(struct sk_buff * skb);
+int32_t mcast_tx(struct sk_buff * skb);
+#endif
+
+#ifdef MTK_NEW_COMBO_EMMC_SUPPORT
+int ra_mtd_read_nm(char *name, loff_t from, size_t len, u_char *buf) 
+{
+	/* TODO */
+	return 0;
+}
+#else
 #ifdef RA_MTD_RW_BY_NUM
 int ra_mtd_read(int num, loff_t from, size_t len, u_char *buf);
 #else
-extern int ra_mtd_read_nm(char *name, loff_t from, size_t len, u_char *buf);
+int ra_mtd_read_nm(char *name, loff_t from, size_t len, u_char *buf);
+#endif
 #endif
 
-#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_P5_RGMII_TO_MT7530_MODE) || defined (CONFIG_ARCH_MT7623)
+#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_P5_RGMII_TO_MT7530_MODE)
 void setup_internal_gsw(void);
 #if defined (CONFIG_GE1_TRGMII_FORCE_1200)
 void apll_xtal_enable(void);
@@ -106,26 +117,11 @@ void apll_xtal_enable(void);
 #endif
 #endif
 
-#if defined (CONFIG_MT7623_FPGA)
-void setup_fpga_gsw(void);
-#endif
-
-/* SKB allocation API selection */
-#if !defined (CONFIG_ETH_SKB_ALLOC_SELECT)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)) && defined (CONFIG_MT7621_ASIC)
-#define CONFIG_ETH_SLAB_ALLOC_SKB
-#endif
-#endif
-
 /* gmac driver feature set config */
 #if defined (CONFIG_RAETH_NAPI) || defined (CONFIG_RAETH_QOS)
 #undef DELAY_INT
 #else
-#if defined     (CONFIG_ARCH_MT7623)
-#define DELAY_INT       1
-#else
-#define DELAY_INT       1
-#endif
+#define DELAY_INT	1
 #endif
 
 //#define CONFIG_UNH_TEST
@@ -141,16 +137,8 @@ struct net_device		*dev_raether;
 
 static int rx_dma_owner_idx; 
 static int rx_dma_owner_idx0;
-#if defined (CONFIG_RAETH_HW_LRO)
-static int rx_dma_owner_lro1;
-static int rx_dma_owner_lro2;
-static int rx_dma_owner_lro3;
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 static int rx_dma_owner_idx1;
-#if defined(CONFIG_ARCH_MT7623)
-static int rx_dma_owner_idx2;
-static int rx_dma_owner_idx3;
-#endif  /* CONFIG_ARCH_MT7623 */
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 int rx_calc_idx1;
 #endif
@@ -203,11 +191,8 @@ unsigned short p7_tx_byte_cnt = 0;
 #endif
 #endif
 
-#if defined(CONFIG_ARCH_MT7623)
-#define	FE_RESET_POLLING_MS	(5000)
-static struct task_struct *kreset_task = NULL;
-static unsigned int fe_reset_times = 0;
-#endif
+
+
 
 #if defined (CONFIG_ETHTOOL) /*&& defined (CONFIG_RAETH_ROUTER)*/
 #include "ra_ethtool.h"
@@ -217,22 +202,16 @@ extern struct ethtool_ops	ra_virt_ethtool_ops;
 #endif // CONFIG_PSEUDO_SUPPORT //
 #endif // (CONFIG_ETHTOOL //
 
-#if defined(CONFIG_MODEL_RTAC85U) || defined(CONFIG_MODEL_RTAC85P) || defined(CONFIG_MODEL_RTAC65U) || defined(CONFIG_MODEL_RTN800HP)	|| defined(CONFIG_MODEL_RTACRH26) //ASUS_EXT
-int first_gsw_init=0;
-#endif
-
 #ifdef CONFIG_RALINK_VISTA_BASIC
 int is_switch_175c = 1;
 #endif
 
-unsigned int M2Q_table[64] = {0};
 unsigned int lan_wan_separate = 0;
-
-#if defined(CONFIG_HW_SFQ)
-unsigned int web_sfq_enable = 0;
-EXPORT_SYMBOL(web_sfq_enable);
+#if defined(RTAC1200GA1) || defined(RTACRH26)//ASUS
+int first_gsw_init=0;
 #endif
 
+unsigned int M2Q_table[64] = {0};
 EXPORT_SYMBOL(M2Q_table);
 EXPORT_SYMBOL(lan_wan_separate);
 #if defined (CONFIG_RAETH_LRO)
@@ -243,21 +222,13 @@ extern char const *nvram_get(int index, char *name);
 #endif
 
 #define KSEG1                   0xa0000000
-#if defined (CONFIG_MIPS)
 #define PHYS_TO_VIRT(x)         ((void *)((x) | KSEG1))
 #define VIRT_TO_PHYS(x)         ((unsigned long)(x) & ~KSEG1)
-#else
-#define PHYS_TO_VIRT(x)         phys_to_virt(x)
-#define VIRT_TO_PHYS(x)         virt_to_phys(x)
-#endif
 
 extern int fe_dma_init(struct net_device *dev);
 extern int ei_start_xmit(struct sk_buff* skb, struct net_device *dev, int gmac_no);
 extern void ei_xmit_housekeeping(unsigned long unused);
 extern inline int rt2880_eth_send(struct net_device* dev, struct sk_buff *skb, int gmac_no);
-#if defined (CONFIG_RAETH_HW_LRO)
-extern int fe_hw_lro_init(struct net_device *dev);
-#endif  /* CONFIG_RAETH_HW_LRO */
 
 #if 0 
 void skb_dump(struct sk_buff* sk) {
@@ -290,12 +261,12 @@ void skb_dump(struct sk_buff* sk) {
 
 
 
-#if defined (CONFIG_GIGAPHY) || defined (CONFIG_P5_MAC_TO_PHY_MODE)
+#if defined (CONFIG_GIGAPHY) || defined (CONFIG_P5_MAC_TO_PHY_MODE) ||  defined (CONFIG_P4_MAC_TO_PHY_MODE)
 int isICPlusGigaPHY(int ge)
 {
 	u32 phy_id0 = 0, phy_id1 = 0;
 
-#ifdef CONFIG_GE2_RGMII_AN
+#if defined (CONFIG_GE2_RGMII_AN) || defined (CONFIG_P4_MAC_TO_PHY_MODE)
 	if (ge == 2) {
 		if (!mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 2, &phy_id0)) {
 			printk("\n Read PhyID 1 is Fail!!\n");
@@ -437,10 +408,10 @@ void set_fe_dma_glo_cfg(void)
         int fe_glo_cfg=0;
 #endif
 
-#if   defined (CONFIG_RALINK_MT7620) || defined (CONFIG_RALINK_MT7621)
+#if defined (CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_RT6855A) 
+	dma_glo_cfg = (TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN | PDMA_BT_SIZE_32DWORDS);
+#elif defined (CONFIG_RALINK_MT7620) || defined (CONFIG_RALINK_MT7621)
 	dma_glo_cfg = (TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN | PDMA_BT_SIZE_16DWORDS);
-#elif defined (CONFIG_ARCH_MT7623)
-	dma_glo_cfg = (TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN | PDMA_BT_SIZE_16DWORDS | ADMA_RX_BT_SIZE_32DWORDS);
 #else 
 	dma_glo_cfg = (TX_WB_DDONE | RX_DMA_EN | TX_DMA_EN | PDMA_BT_SIZE_4DWORDS);
 #endif
@@ -457,12 +428,21 @@ void set_fe_dma_glo_cfg(void)
 	sysRegWrite(QDMA_GLO_CFG, dma_glo_cfg);
 #endif
 
+	/* only the following chipset need to set it */
+#if defined (CONFIG_RALINK_RT2880) || defined(CONFIG_RALINK_RT2883) || \
+    defined (CONFIG_RALINK_RT3052) || defined (CONFIG_RALINK_RT3883)
+	//set 1us timer count in unit of clock cycle
+	fe_glo_cfg = sysRegRead(FE_GLO_CFG);
+	fe_glo_cfg &= ~(0xff << 8); //clear bit8-bit15
+	fe_glo_cfg |= (((get_surfboard_sysclk()/1000000)) << 8);
+	sysRegWrite(FE_GLO_CFG, fe_glo_cfg);
+#endif
 }
 
 int forward_config(struct net_device *dev)
 {
 	
-#if defined (CONFIG_RALINK_MT7628)
+#if defined (CONFIG_RALINK_RT5350) || defined (CONFIG_RALINK_MT7628)
 
 	/* RT5350: No GDMA, PSE, CDMA, PPE */
 	unsigned int sdmVal;
@@ -575,25 +555,21 @@ int forward_config(struct net_device *dev)
 	regVal2 |= GDM1_UCS_EN;
 #endif
 
-#if defined (CONFIG_RAETH_HW_LRO) 
-    dev->features |= NETIF_F_HW_CSUM;
-#else
 	dev->features |= NETIF_F_IP_CSUM; /* Can checksum TCP/UDP over IPv4 */
-#endif  /* CONFIG_RAETH_HW_LRO */
 //#if LINUX_VERSION_CODE > KERNEL_VERSION(3,10,0)
 //	dev->vlan_features |= NETIF_F_IP_CSUM;
 //#endif
 
 #if defined(CONFIG_RALINK_MT7620)
 #if defined (CONFIG_RAETH_TSO)
-	if ((sysRegRead(RALINK_SYSCTL_BASE+0xC) & 0xf) >= 0x5) {
+	if ((sysRegRead(0xB000000C) & 0xf) >= 0x5) {
 		dev->features |= NETIF_F_SG;
 		dev->features |= NETIF_F_TSO;
 	}
 #endif // CONFIG_RAETH_TSO //
 
 #if defined (CONFIG_RAETH_TSOV6)
-	if ((sysRegRead(RALINK_SYSCTL_BASE+0xC) & 0xf) >= 0x5) {
+	if ((sysRegRead(0xB000000C) & 0xf) >= 0x5) {
 		dev->features |= NETIF_F_TSO6;
 		dev->features |= NETIF_F_IPV6_CSUM; /* Can checksum TCP/UDP over IPv6 */
 	}
@@ -666,8 +642,12 @@ int forward_config(struct net_device *dev)
  *	The register affects QOS correctness in frame engine!
  */
 
-#if   defined(CONFIG_RALINK_MT7620) || defined(CONFIG_RALINK_MT7621) || \
-      defined (CONFIG_RALINK_MT7628) || defined(CONFIG_ARCH_MT7623)
+#if defined(CONFIG_RALINK_RT2883) || defined(CONFIG_RALINK_RT3883)
+	sysRegWrite(PSE_FQ_CFG, cpu_to_le32(INIT_VALUE_OF_RT2883_PSE_FQ_CFG));
+#elif defined(CONFIG_RALINK_RT3352) || defined(CONFIG_RALINK_RT5350) ||  \
+      defined(CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_RT6855A) || \
+      defined(CONFIG_RALINK_MT7620) || defined(CONFIG_RALINK_MT7621) || \
+      defined (CONFIG_RALINK_MT7628)
         /*use default value*/
 #else
 	sysRegWrite(PSE_FQ_CFG, cpu_to_le32(INIT_VALUE_OF_PSE_FQFC_CFG));
@@ -741,7 +721,7 @@ static int rt2880_eth_recv(struct net_device* dev)
 
 	int bReschedule = 0;
 	END_DEVICE* 	ei_local = netdev_priv(dev);
-#if defined (CONFIG_RAETH_MULTIPLE_RX_RING) || defined (CONFIG_RAETH_HW_LRO)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 	int rx_ring_no=0;
 #endif
 
@@ -761,28 +741,27 @@ static int rt2880_eth_recv(struct net_device* dev)
 #endif
 
 #if defined (CONFIG_32B_DESC)
+#if defined (CONFIG_MIPS)
 	dma_cache_sync(NULL, &ei_local->rx_ring0[rx_dma_owner_idx0], sizeof(struct PDMA_rxdesc), DMA_FROM_DEVICE);
+#else
+	dma_sync_single_for_cpu(NULL, &ei_local->rx_ring0[rx_dma_owner_idx0], sizeof(struct PDMA_rxdesc), DMA_FROM_DEVICE);
 #endif
-#if defined (CONFIG_RAETH_HW_LRO)
-	rx_dma_owner_lro1 = (sysRegRead(RX_CALC_IDX1) + 1) % NUM_LRO_RX_DESC;
-	rx_dma_owner_lro2 = (sysRegRead(RX_CALC_IDX2) + 1) % NUM_LRO_RX_DESC;
-	rx_dma_owner_lro3 = (sysRegRead(RX_CALC_IDX3) + 1) % NUM_LRO_RX_DESC;
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#endif
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 	rx_dma_owner_idx1 = (rx_calc_idx1 + 1) % NUM_RX_DESC;
 #else
 	rx_dma_owner_idx1 = (sysRegRead(RX_CALC_IDX1) + 1) % NUM_RX_DESC;
-#endif  /* CONFIG_RAETH_RW_PDMAPTR_FROM_VAR */
-#if defined(CONFIG_ARCH_MT7623)
-    rx_dma_owner_idx2 = (sysRegRead(RX_CALC_IDX2) + 1) % NUM_RX_DESC;
-    rx_dma_owner_idx3 = (sysRegRead(RX_CALC_IDX3) + 1) % NUM_RX_DESC;
 #endif
 #if defined (CONFIG_32B_DESC)
+#if defined (CONFIG_MIPS)
 	dma_cache_sync(NULL, &ei_local->rx_ring1[rx_dma_owner_idx1], sizeof(struct PDMA_rxdesc), DMA_FROM_DEVICE);
+#else
+	dma_sync_single_for_cpu(NULL, &ei_local->rx_ring0[rx_dma_owner_idx0], sizeof(struct PDMA_rxdesc), DMA_FROM_DEVICE);
+#endif
 #endif
 #endif
 	for ( ; ; ) {
-
 
 #ifdef CONFIG_RAETH_NAPI
                 if(*work_done >= work_to_do)
@@ -798,62 +777,13 @@ static int rt2880_eth_recv(struct net_device* dev)
 #endif
 
 
-#if defined (CONFIG_RAETH_HW_LRO)
-		if (ei_local->rx_ring3[rx_dma_owner_lro3].rxd_info2.DDONE_bit == 1)  {
-		    rx_ring = ei_local->rx_ring3;
-		    rx_dma_owner_idx = rx_dma_owner_lro3;
-		//    printk("rx_dma_owner_lro3=%x\n",rx_dma_owner_lro3);
-		    rx_ring_no=3;
-		}
-		else if (ei_local->rx_ring2[rx_dma_owner_lro2].rxd_info2.DDONE_bit == 1)  {
-		    rx_ring = ei_local->rx_ring2;
-		    rx_dma_owner_idx = rx_dma_owner_lro2;
-		//    printk("rx_dma_owner_lro2=%x\n",rx_dma_owner_lro2);
-		    rx_ring_no=2;
-		}
-		else if (ei_local->rx_ring1[rx_dma_owner_lro1].rxd_info2.DDONE_bit == 1)  {
-		    rx_ring = ei_local->rx_ring1;
-		    rx_dma_owner_idx = rx_dma_owner_lro1;
-		//    printk("rx_dma_owner_lro1=%x\n",rx_dma_owner_lro1);
-		    rx_ring_no=1;
-		} 
-		else if (ei_local->rx_ring0[rx_dma_owner_idx0].rxd_info2.DDONE_bit == 1)  {
-		    rx_ring = ei_local->rx_ring0;
-		    rx_dma_owner_idx = rx_dma_owner_idx0;
-		 //   printk("rx_dma_owner_idx0=%x\n",rx_dma_owner_idx0);
-		    rx_ring_no=0;
-		} else {
-		    break;
-		}
-    #if defined (CONFIG_RAETH_HW_LRO_DBG)
-        HwLroStatsUpdate(rx_ring_no, rx_ring[rx_dma_owner_idx].rxd_info2.LRO_AGG_CNT, \
-            (rx_ring[rx_dma_owner_idx].rxd_info2.PLEN1 << 14) | rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0);
-    #endif
-    #if defined(CONFIG_RAETH_HW_LRO_REASON_DBG)
-        HwLroFlushStatsUpdate(rx_ring_no, rx_ring[rx_dma_owner_idx].rxd_info2.REV);
-    #endif
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 		if (ei_local->rx_ring1[rx_dma_owner_idx1].rxd_info2.DDONE_bit == 1)  {
 		    rx_ring = ei_local->rx_ring1;
 		    rx_dma_owner_idx = rx_dma_owner_idx1;
 		//    printk("rx_dma_owner_idx1=%x\n",rx_dma_owner_idx1);
 		    rx_ring_no=1;
-		}
-#if defined(CONFIG_ARCH_MT7623)
-        else if (ei_local->rx_ring2[rx_dma_owner_idx2].rxd_info2.DDONE_bit == 1)  {
-            rx_ring = ei_local->rx_ring2;
-            rx_dma_owner_idx = rx_dma_owner_idx2;
-        //    printk("rx_dma_owner_idx2=%x\n",rx_dma_owner_idx2);
-            rx_ring_no=2;
-        }
-        else if (ei_local->rx_ring3[rx_dma_owner_idx3].rxd_info2.DDONE_bit == 1)  {
-		    rx_ring = ei_local->rx_ring3;
-		    rx_dma_owner_idx = rx_dma_owner_idx3;
-		//    printk("rx_dma_owner_idx3=%x\n",rx_dma_owner_idx3);
-		    rx_ring_no=3;
-		}		
-#endif  /* CONFIG_ARCH_MT7623 */
-        else if (ei_local->rx_ring0[rx_dma_owner_idx0].rxd_info2.DDONE_bit == 1)  {
+		} else if (ei_local->rx_ring0[rx_dma_owner_idx0].rxd_info2.DDONE_bit == 1)  {
 		    rx_ring = ei_local->rx_ring0;
 		    rx_dma_owner_idx = rx_dma_owner_idx0;
 		 //   printk("rx_dma_owner_idx0=%x\n",rx_dma_owner_idx0);
@@ -875,70 +805,25 @@ static int rt2880_eth_recv(struct net_device* dev)
 		prefetch(&rx_ring[(rx_dma_owner_idx + 1) % NUM_RX_DESC]);
 #endif
 		/* skb processing */
-#if defined (CONFIG_RAETH_HW_LRO)
-        length = (rx_ring[rx_dma_owner_idx].rxd_info2.PLEN1 << 14) | rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0;
-#else
 		length = rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0;
-#endif  /* CONFIG_RAETH_HW_LRO */
-
-#if defined (CONFIG_ARCH_MT7623)
-		dma_unmap_single(NULL, rx_ring[rx_dma_owner_idx].rxd_info1.PDP0, length, DMA_FROM_DEVICE);
-#endif
-
-#if defined (CONFIG_RAETH_HW_LRO)
-		if(rx_ring_no==3) {
-		    rx_skb = ei_local->netrx3_skbuf[rx_dma_owner_idx];
-		    rx_skb->data = ei_local->netrx3_skbuf[rx_dma_owner_idx]->data;
-		}
-		else if(rx_ring_no==2) {
-		    rx_skb = ei_local->netrx2_skbuf[rx_dma_owner_idx];
-		    rx_skb->data = ei_local->netrx2_skbuf[rx_dma_owner_idx]->data;
-		}
-		else if(rx_ring_no==1) {
-		    rx_skb = ei_local->netrx1_skbuf[rx_dma_owner_idx];
-		    rx_skb->data = ei_local->netrx1_skbuf[rx_dma_owner_idx]->data;
-		} 
-		else {
-		    rx_skb = ei_local->netrx0_skbuf[rx_dma_owner_idx];
-		    rx_skb->data = ei_local->netrx0_skbuf[rx_dma_owner_idx]->data;
-		}
-    #if defined(CONFIG_RAETH_PDMA_DVT)
-        raeth_pdma_lro_dvt( rx_ring_no, ei_local, rx_dma_owner_idx );
-    #endif  /* CONFIG_RAETH_PDMA_DVT */
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 		if(rx_ring_no==1) {
 		    rx_skb = ei_local->netrx1_skbuf[rx_dma_owner_idx];
 		    rx_skb->data = ei_local->netrx1_skbuf[rx_dma_owner_idx]->data;
-		} 
-#if defined(CONFIG_ARCH_MT7623)
-		else if(rx_ring_no==2) {
-		    rx_skb = ei_local->netrx2_skbuf[rx_dma_owner_idx];
-		    rx_skb->data = ei_local->netrx2_skbuf[rx_dma_owner_idx]->data;
-		}
-        else if(rx_ring_no==3) {
-		    rx_skb = ei_local->netrx3_skbuf[rx_dma_owner_idx];
-		    rx_skb->data = ei_local->netrx3_skbuf[rx_dma_owner_idx]->data;
-		}
-#endif  /* CONFIG_ARCH_MT7623 */
-        else {
+		} else {
 		    rx_skb = ei_local->netrx0_skbuf[rx_dma_owner_idx];
 		    rx_skb->data = ei_local->netrx0_skbuf[rx_dma_owner_idx]->data;
 		}
-    #if defined(CONFIG_RAETH_PDMA_DVT)
-        raeth_pdma_lro_dvt( rx_ring_no, ei_local, rx_dma_owner_idx );
-    #endif  /* CONFIG_RAETH_PDMA_DVT */
 #else
 		rx_skb = ei_local->netrx0_skbuf[rx_dma_owner_idx];
 		rx_skb->data = ei_local->netrx0_skbuf[rx_dma_owner_idx]->data;
-    #if defined(CONFIG_RAETH_PDMA_DVT)
-        raeth_pdma_rx_desc_dvt( ei_local, rx_dma_owner_idx0 );
-    #endif  /* CONFIG_RAETH_PDMA_DVT */
 #endif
 		rx_skb->len 	= length;
-/*TODO*/
+
 #if defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
 		rx_skb->data += NET_IP_ALIGN;
 #endif
+
 		rx_skb->tail 	= rx_skb->data + length;
 
 #ifdef CONFIG_PSEUDO_SUPPORT
@@ -976,6 +861,18 @@ static int rt2880_eth_recv(struct net_device* dev)
 		    rx_skb->ip_summed = CHECKSUM_NONE;
 #endif
 
+#if defined(CONFIG_RA_CLASSIFIER)||defined(CONFIG_RA_CLASSIFIER_MODULE)
+		/* Qwert+
+		 */
+		if(ra_classifier_hook_rx!= NULL)
+		{
+#if defined(CONFIG_RALINK_EXTERNAL_TIMER)
+			ra_classifier_hook_rx(rx_skb, (*((volatile u32 *)(0xB0000D08))&0x0FFFF));
+#else			
+			ra_classifier_hook_rx(rx_skb, read_c0_count());
+#endif			
+		}
+#endif /* CONFIG_RA_CLASSIFIER */
 
 #if defined (CONFIG_RA_HW_NAT)  || defined (CONFIG_RA_HW_NAT_MODULE)
 		if(ra_sw_nat_hook_rx != NULL) {
@@ -988,25 +885,9 @@ static int rt2880_eth_recv(struct net_device* dev)
 		/* We have to check the free memory size is big enough
 		 * before pass the packet to cpu*/
 #if defined (CONFIG_RAETH_SKB_RECYCLE_2K)
-#if defined (CONFIG_RAETH_HW_LRO)
-            if( rx_ring != ei_local->rx_ring0 )
-	            skb = __dev_alloc_skb(ei_local->hw_lro_sdl_size + NET_IP_ALIGN, GFP_ATOMIC);
-            else
-#endif  /* CONFIG_RAETH_HW_LRO */
                 skb = skbmgr_dev_alloc_skb2k();
 #else
-#if defined (CONFIG_RAETH_HW_LRO)
-        if( rx_ring != ei_local->rx_ring0 )
-            skb = __dev_alloc_skb(ei_local->hw_lro_sdl_size + NET_IP_ALIGN, GFP_ATOMIC);
-        else
-#endif  /* CONFIG_RAETH_HW_LRO */
-#ifdef CONFIG_ETH_SLAB_ALLOC_SKB
-		skb = alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN + NET_SKB_PAD, GFP_ATOMIC);
-#else
-    		skb = __dev_alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN, GFP_ATOMIC);
-#endif
-
-
+		skb = __dev_alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN, GFP_ATOMIC);
 #endif
 
 		if (unlikely(skb == NULL))
@@ -1021,28 +902,9 @@ static int rt2880_eth_recv(struct net_device* dev)
 			} else
 #endif
 				ei_local->stat.rx_dropped++;
-
-			/* NOTE(Nelson): discard the rx packet */
-#if defined (CONFIG_RAETH_HW_LRO)
-			if( rx_ring != ei_local->rx_ring0 ){
-			    rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0 = SET_ADMA_RX_LEN0(ei_local->hw_lro_sdl_size);
-			    rx_ring[rx_dma_owner_idx].rxd_info2.PLEN1 = SET_ADMA_RX_LEN1(ei_local->hw_lro_sdl_size >> 14);
-			}
-			else
-#endif
-				rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0 = MAX_RX_LENGTH;
-			rx_ring[rx_dma_owner_idx].rxd_info2.LS0 = 0;
-			rx_ring[rx_dma_owner_idx].rxd_info2.DDONE_bit = 0;
-			sysRegWrite(RAETH_RX_CALC_IDX0, rx_dma_owner_idx);
-			wmb();
-		
                         bReschedule = 1;
 			break;
 		}
-#ifdef CONFIG_ETH_SLAB_ALLOC_SKB
-		skb_reserve(skb, NET_SKB_PAD);
-#endif
-
 #if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
 		skb_reserve(skb, NET_IP_ALIGN);
 #endif
@@ -1075,6 +937,11 @@ static int rt2880_eth_recv(struct net_device* dev)
 	    (ra_sw_nat_hook_rx!= NULL && ra_sw_nat_hook_rx(rx_skb)))
 #endif
          {
+#if defined (CONFIG_RALINK_RT3052_MP2)
+	       if(mcast_rx(rx_skb)==0) {
+		   kfree_skb(rx_skb);
+	       }else
+#endif
 #if defined (CONFIG_RAETH_LRO)
 	       if (rx_skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		       lro_receive_skb(&ei_local->lro_mgr, rx_skb, NULL);
@@ -1117,75 +984,33 @@ static int rt2880_eth_recv(struct net_device* dev)
 
 
 #if defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
-#if defined (CONFIG_RAETH_HW_LRO)
-        if( rx_ring != ei_local->rx_ring0 ){
-            rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0 = SET_ADMA_RX_LEN0(ei_local->hw_lro_sdl_size);
-            rx_ring[rx_dma_owner_idx].rxd_info2.PLEN1 = SET_ADMA_RX_LEN1(ei_local->hw_lro_sdl_size >> 14);
-        }
-        else
-#endif  /* CONFIG_RAETH_HW_LRO */
-    		rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0 = MAX_RX_LENGTH;
+		rx_ring[rx_dma_owner_idx].rxd_info2.PLEN0 = MAX_RX_LENGTH;
 		rx_ring[rx_dma_owner_idx].rxd_info2.LS0 = 0;
 #endif
-#if defined (CONFIG_RAETH_HW_LRO)
-        if( rx_ring != ei_local->rx_ring0 )
-            rx_ring[rx_dma_owner_idx].rxd_info1.PDP0 = dma_map_single(NULL, skb->data, ei_local->hw_lro_sdl_size, PCI_DMA_FROMDEVICE);
-        else
-#endif  /* CONFIG_RAETH_HW_LRO */
-    		rx_ring[rx_dma_owner_idx].rxd_info1.PDP0 = dma_map_single(NULL, skb->data, MAX_RX_LENGTH + NET_IP_ALIGN, PCI_DMA_FROMDEVICE);
+		rx_ring[rx_dma_owner_idx].rxd_info2.DDONE_bit = 0;
+		rx_ring[rx_dma_owner_idx].rxd_info1.PDP0 = dma_map_single(NULL, skb->data, MAX_RX_LENGTH, PCI_DMA_FROMDEVICE);
 #ifdef CONFIG_32B_DESC
 		dma_cache_sync(NULL, &rx_ring[rx_dma_owner_idx], sizeof(struct PDMA_rxdesc), DMA_TO_DEVICE);
 #endif
 
-		rx_ring[rx_dma_owner_idx].rxd_info2.DDONE_bit = 0;
-		wmb();
-
 		/*  Move point to next RXD which wants to alloc*/
-#if defined (CONFIG_RAETH_HW_LRO)
-		if(rx_ring_no==3) {
-		    ei_local->netrx3_skbuf[rx_dma_owner_idx] = skb;
-		    sysRegWrite(RAETH_RX_CALC_IDX3, rx_dma_owner_idx);
-		}
-		else if(rx_ring_no==2) {
-		    ei_local->netrx2_skbuf[rx_dma_owner_idx] = skb;
-		    sysRegWrite(RAETH_RX_CALC_IDX2, rx_dma_owner_idx);
-		}
-		else if(rx_ring_no==1) {
-		    ei_local->netrx1_skbuf[rx_dma_owner_idx] = skb;
-		    sysRegWrite(RAETH_RX_CALC_IDX1, rx_dma_owner_idx);
-		}
-		else if(rx_ring_no==0) {
-		    ei_local->netrx0_skbuf[rx_dma_owner_idx] = skb;
-		    sysRegWrite(RAETH_RX_CALC_IDX0, rx_dma_owner_idx);
-		}
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 		if(rx_ring_no==0) {
-		    ei_local->netrx0_skbuf[rx_dma_owner_idx] = skb;
 		    sysRegWrite(RAETH_RX_CALC_IDX0, rx_dma_owner_idx);
+		    ei_local->netrx0_skbuf[rx_dma_owner_idx] = skb;
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 		    rx_calc_idx0 = rx_dma_owner_idx;
 #endif
-		}
-#if defined(CONFIG_ARCH_MT7623)
-        else if(rx_ring_no==3) {
-		    ei_local->netrx3_skbuf[rx_dma_owner_idx] = skb;
-		    sysRegWrite(RAETH_RX_CALC_IDX3, rx_dma_owner_idx);
-		}
-		else if(rx_ring_no==2) {
-		    ei_local->netrx2_skbuf[rx_dma_owner_idx] = skb;
-		    sysRegWrite(RAETH_RX_CALC_IDX2, rx_dma_owner_idx);
-		}
-#endif  /* CONFIG_ARCH_MT7623 */
-        else {
-		    ei_local->netrx1_skbuf[rx_dma_owner_idx] = skb;
+		}else {
 		    sysRegWrite(RAETH_RX_CALC_IDX1, rx_dma_owner_idx);
+		    ei_local->netrx1_skbuf[rx_dma_owner_idx] = skb;
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 		    rx_calc_idx1 = rx_dma_owner_idx;
 #endif
 		}
 #else
-		ei_local->netrx0_skbuf[rx_dma_owner_idx] = skb;
 		sysRegWrite(RAETH_RX_CALC_IDX0, rx_dma_owner_idx);
+		ei_local->netrx0_skbuf[rx_dma_owner_idx] = skb;
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 		rx_calc_idx0 = rx_dma_owner_idx;
 #endif
@@ -1194,30 +1019,13 @@ static int rt2880_eth_recv(struct net_device* dev)
 		
 		/* Update to Next packet point that was received.
 		 */
-#if defined (CONFIG_RAETH_HW_LRO)
-		if(rx_ring_no==3)
-			rx_dma_owner_lro3 = (sysRegRead(RAETH_RX_CALC_IDX3) + 1) % NUM_LRO_RX_DESC;
-		else if(rx_ring_no==2)
-			rx_dma_owner_lro2 = (sysRegRead(RAETH_RX_CALC_IDX2) + 1) % NUM_LRO_RX_DESC;
-		else if(rx_ring_no==1)
-			rx_dma_owner_lro1 = (sysRegRead(RAETH_RX_CALC_IDX1) + 1) % NUM_LRO_RX_DESC;
-		else if(rx_ring_no==0)
-			rx_dma_owner_idx0 = (sysRegRead(RAETH_RX_CALC_IDX0) + 1) % NUM_RX_DESC;
-		else {
-		}
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 		if(rx_ring_no==0) {
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 			rx_dma_owner_idx0 = (rx_dma_owner_idx + 1) % NUM_RX_DESC;
 #else
 			rx_dma_owner_idx0 = (sysRegRead(RAETH_RX_CALC_IDX0) + 1) % NUM_RX_DESC;
 #endif
-#if defined(CONFIG_ARCH_MT7623)
-        }else if(rx_ring_no==3) {
-            rx_dma_owner_idx3 = (sysRegRead(RAETH_RX_CALC_IDX3) + 1) % NUM_RX_DESC;
-        }else if(rx_ring_no==2) {
-            rx_dma_owner_idx2 = (sysRegRead(RAETH_RX_CALC_IDX2) + 1) % NUM_RX_DESC;
-#endif  /* CONFIG_ARCH_MT7623 */
 		}else {
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 			rx_dma_owner_idx1 = (rx_dma_owner_idx + 1) % NUM_RX_DESC;
@@ -1261,7 +1069,6 @@ struct net_device_stats *ra_get_stats(struct net_device *dev)
 	return &ei_local->stat;
 }
 
-#if 0	/* not used in ASUS */
 #if defined (CONFIG_RT_3052_ESW)
 void kill_sig_workq(struct work_struct *work)
 {
@@ -1292,7 +1099,6 @@ void kill_sig_workq(struct work_struct *work)
 
 }
 #endif
-#endif	/* 0 */
 
 
 ///////////////////////////////////////////////////////////////////
@@ -1316,7 +1122,6 @@ void ei_receive(unsigned long unused)  // device structure
 	END_DEVICE *ei_local = netdev_priv(dev);
 	unsigned long reg_int_mask=0;
 	int bReschedule=0;
-	unsigned long flags;
 
 
 	if(tx_ring_full==0){
@@ -1334,23 +1139,22 @@ void ei_receive(unsigned long unused)  // device structure
 			tasklet_hi_schedule(&ei_local->rx_tasklet);
 #endif // WORKQUEUE_BH //
 		}else{
-			spin_lock_irqsave(&(ei_local->page_lock), flags);
 			reg_int_mask=sysRegRead(RAETH_FE_INT_ENABLE);
 #if defined(DELAY_INT)
 			sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask| RX_DLY_INT);
 #else
-			sysRegWrite(RAETH_FE_INT_ENABLE, (reg_int_mask | RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3));
+			sysRegWrite(RAETH_FE_INT_ENABLE, (reg_int_mask | RX_DONE_INT0 | RX_DONE_INT1));
 #endif
 #ifdef CONFIG_RAETH_QDMA
 			reg_int_mask=sysRegRead(QFE_INT_ENABLE);
 #if defined(DELAY_INT)
 			sysRegWrite(QFE_INT_ENABLE, reg_int_mask| RX_DLY_INT);
 #else
-			sysRegWrite(QFE_INT_ENABLE, (reg_int_mask | RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3));
+			sysRegWrite(QFE_INT_ENABLE, (reg_int_mask | RX_DONE_INT0 | RX_DONE_INT1));
 #endif
 
 #endif			
-			spin_unlock_irqrestore(&(ei_local->page_lock), flags);
+			
 		}
 	}else{
 #ifdef WORKQUEUE_BH
@@ -1366,93 +1170,6 @@ void ei_receive(unsigned long unused)  // device structure
 	}
 }
 #endif
-
-#if defined (CONFIG_RAETH_HW_LRO)
-void ei_hw_lro_auto_adj(unsigned int index, END_DEVICE* ei_local)
-{    
-    unsigned int entry;
-    unsigned int pkt_cnt;
-    unsigned int tick_cnt;
-    unsigned int duration_us;
-    unsigned int byte_cnt;
-
-    /* read packet count statitics of the auto-learn table */
-    entry = index  + 68;
-    sysRegWrite( PDMA_FE_ALT_CF8, entry );
-    pkt_cnt = sysRegRead(PDMA_FE_ALT_SGL_CFC) & 0xfff;
-    tick_cnt = (sysRegRead(PDMA_FE_ALT_SGL_CFC) >> 16) & 0xffff;
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-    printk("[HW LRO] ei_hw_lro_auto_adj(): pkt_cnt[%d]=%d, tick_cnt[%d]=%d\n", index, pkt_cnt, index, tick_cnt);
-    printk("[HW LRO] ei_hw_lro_auto_adj(): packet_interval[%d]=%d (ticks/pkt)\n", index, tick_cnt/pkt_cnt);
-#endif    
-
-    /* read byte count statitics of the auto-learn table */
-    entry = index  + 64;
-    sysRegWrite( PDMA_FE_ALT_CF8, entry );
-    byte_cnt = sysRegRead(PDMA_FE_ALT_SGL_CFC);
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-    printk("[HW LRO] ei_hw_lro_auto_adj(): byte_cnt[%d]=%d\n", index, byte_cnt);
-#endif
-
-    /* calculate the packet interval of the rx flow */
-    duration_us = tick_cnt * HW_LRO_TIMER_UNIT;
-    ei_local->hw_lro_pkt_interval[index - 1] = (duration_us/pkt_cnt) * ei_local->hw_lro_alpha / 100;
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-    printk("[HW LRO] ei_hw_lro_auto_adj(): packet_interval[%d]=%d (20us)\n", index, duration_us/pkt_cnt);
-#endif    
-
-    if ( !ei_local->hw_lro_fix_setting ){
-    /* adjust age_time, agg_time for the lro ring */
-	if(ei_local->hw_lro_pkt_interval[index - 1] > 0){
-		SET_PDMA_RXRING_AGE_TIME(index, (ei_local->hw_lro_pkt_interval[index - 1] * HW_LRO_MAX_AGG_CNT));
-		SET_PDMA_RXRING_AGG_TIME(index, (ei_local->hw_lro_pkt_interval[index - 1] * HW_LRO_AGG_DELTA));
-	}
-	else{
-		SET_PDMA_RXRING_AGE_TIME(index, HW_LRO_MAX_AGG_CNT);
-		SET_PDMA_RXRING_AGG_TIME(index, HW_LRO_AGG_DELTA);
-	}
-    }
-}
-
-void ei_hw_lro_workq(struct work_struct *work)
-{
-    END_DEVICE *ei_local;
-    unsigned int reg_int_val;
-    unsigned int reg_int_mask;
-
-    ei_local = container_of(work, struct end_device, hw_lro_wq);
-
-    reg_int_val = sysRegRead(RAETH_FE_INT_STATUS);
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-    printk("[HW LRO] ei_hw_lro_workq(): RAETH_FE_INT_STATUS=0x%x\n", reg_int_val);
-#endif
-    if((reg_int_val & ALT_RPLC_INT3)){
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-        printk("[HW LRO] ALT_RPLC_INT3 occurred!\n");
-#endif
-        sysRegWrite(RAETH_FE_INT_STATUS, ALT_RPLC_INT3);
-        ei_hw_lro_auto_adj(3, ei_local);
-    }
-    if((reg_int_val & ALT_RPLC_INT2)){
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-        printk("[HW LRO] ALT_RPLC_INT2 occurred!\n");
-#endif
-        sysRegWrite(RAETH_FE_INT_STATUS, ALT_RPLC_INT2);
-        ei_hw_lro_auto_adj(2, ei_local);
-    }
-    if((reg_int_val & ALT_RPLC_INT1)){
-#if defined (CONFIG_RAETH_HW_LRO_AUTO_ADJ_DBG)
-        printk("[HW LRO] ALT_RPLC_INT1 occurred!\n");
-#endif
-        sysRegWrite(RAETH_FE_INT_STATUS, ALT_RPLC_INT1);
-        ei_hw_lro_auto_adj(1, ei_local);
-    }
-
-    /* unmask interrupts of rx flow to hw lor rings */
-    reg_int_mask = sysRegRead(RAETH_FE_INT_ENABLE);    
-    sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask | ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1);
-}
-#endif  /* CONFIG_RAETH_HW_LRO */
 
 #ifdef CONFIG_RAETH_NAPI
 static int
@@ -1505,7 +1222,7 @@ raeth_clean(struct net_device *netdev, int *budget)
 #ifdef DELAY_INT
                 sysRegWrite(QFE_INT_ENABLE, reg_int_mask |QFE_INT_DLY_INIT);  // init delay interrupt only
 #else
-		sysRegWrite(QFE_INT_ENABLE,reg_int_mask | (RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3 | RLS_DONE_INT));
+                sysRegWrite(QFE_INT_ENABLE,reg_int_mask | (RX_DONE_INT0 | RX_DONE_INT1 | RLS_DONE_INT));
 #endif
 #endif // CONFIG_RAETH_QDMA //
 
@@ -1526,7 +1243,6 @@ void gsw_delay_setting(void)
 	int link_speed = 0;
 
 	reg_int_val = sysRegRead(FE_INT_STATUS2);
-#if defined (CONFIG_RALINK_MT7621) || defined(CONFIG_ARCH_MT7623)
 	if( reg_int_val & BIT(25))
 	{
 		if(sysRegRead(RALINK_ETH_SW_BASE+0x0208) & 0x1) // link up
@@ -1535,282 +1251,22 @@ void gsw_delay_setting(void)
 			if(link_speed == 1)
 			{
 				// delay setting for 100M
-#if defined (CONFIG_RALINK_MT7621)				
-				if((sysRegRead(RALINK_SYSCTL_BASE+0xc)&0xFFFF)==0x0101)	
+				if((sysRegRead(0xbe00000c)&0xFFFF)==0x0101)	
 					mii_mgr_write(31, 0x7b00, 8);
 				printk("MT7621 GE2 link rate to 100M\n");
-#elif defined (CONFIG_ARCH_MT7623)
-				printk("MT7623 GE2 link rate to 100M\n");
-#endif
-			} else if(link_speed == 0) 
+			} else 
 			{
-				//delay setting for 10M
-#if defined (CONFIG_RALINK_MT7621)				
-				if((sysRegRead(RALINK_SYSCTL_BASE+0xc)&0xFFFF)==0x0101)
+				//delay setting for 10/1000M
+				if((sysRegRead(0xbe00000c)&0xFFFF)==0x0101)
 					mii_mgr_write(31, 0x7b00, 0x102);
-				printk("MT7621 GE2 link rate to 10M\n");
-#elif defined(CONFIG_ARCH_MT7623)
-				printk("MT7623 GE2 link rate to 10M\n");
-#endif				
-			} else if(link_speed == 2)
-			{
-				// delay setting for 1G
-#if defined (CONFIG_RALINK_MT7621)
-				if((sysRegRead(RALINK_SYSCTL_BASE+0xc)&0xFFFF)==0x0101)
-					mii_mgr_write(31, 0x7b00, 0x102);
-				printk("MT7621 GE2 link rate to 1G\n");
-#elif defined(CONFIG_ARCH_MT7623)
-				printk("MT7623 GE2 link rate to 1G\n");
-#endif
+				printk("MT7621 GE2 link rate to 10M/1G\n");
 			}
-#if 0	/* not used in ASUS */
 			schedule_work(&ei_local->kill_sig_wq);
-#endif	/* 0 */
 		}
 	}
-#endif
 	sysRegWrite(FE_INT_STATUS2, reg_int_val);
 #endif
 }
-
-#if defined (CONFIG_RAETH_TX_RX_INT_SEPARATION)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
-static irqreturn_t ei_rx_interrupt(int irq, void *dev_id)
-#else
-static irqreturn_t ei_rx_interrupt(int irq, void *dev_id, struct pt_regs * regs)
-#endif
-{
-#if !defined(CONFIG_RAETH_NAPI)
-	unsigned long reg_int_val;
-	unsigned long reg_int_mask=0;
-	unsigned int recv = 0;
-	unsigned int transmit __maybe_unused = 0;
-	unsigned long flags;
-#endif
-
-
-	struct net_device *dev = (struct net_device *) dev_id;
-	END_DEVICE *ei_local = netdev_priv(dev);
-
-
-	if (dev == NULL)
-	{
-		printk (KERN_ERR "net_interrupt(): irq %x for unknown device.\n", IRQ_ENET0);
-		return IRQ_NONE;
-	}
-
-#ifdef CONFIG_RAETH_NAPI
-	gsw_delay_setting();
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
-	if(napi_schedule_prep(&ei_local->napi)) {
-#else
-	if(netif_rx_schedule_prep(dev)) {
-#endif
-		atomic_inc(&ei_local->irq_sem);
-		sysRegWrite(RAETH_FE_INT_ENABLE, 0);
-#ifdef CONFIG_RAETH_QDMA
-		sysRegWrite(QFE_INT_ENABLE, 0);
-#endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
-		__napi_schedule(&ei_local->napi);
-#else
-		__netif_rx_schedule(dev);
-#endif
-	}
-#else
-
-	spin_lock_irqsave(&(ei_local->page_lock), flags);
-	reg_int_val = sysRegRead(RAETH_FE_INT_STATUS);
-#ifdef CONFIG_RAETH_QDMA
-	reg_int_val |= sysRegRead(QFE_INT_STATUS);
-#endif
-#if defined (DELAY_INT)
-	if((reg_int_val & RX_DLY_INT))
-		recv = 1;
-
-#if defined(CONFIG_RAETH_PDMA_DVT)
-	raeth_pdma_lro_dly_int_dvt();
-#endif  /* CONFIG_RAETH_PDMA_DVT */
-
-#else
-	if((reg_int_val & RX_DONE_INT0))
-		recv = 1;
-
-#if defined (CONFIG_RAETH_HW_LRO)
-	if((reg_int_val & RX_DONE_INT3))
-		recv = 3;
-	if((reg_int_val & RX_DONE_INT2))
-		recv = 2;
-	if((reg_int_val & RX_DONE_INT1))
-		recv = 1;
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
-#if defined(CONFIG_ARCH_MT7623)
-	if((reg_int_val & RX_DONE_INT3))
-		recv = 3;
-	if((reg_int_val & RX_DONE_INT2))
-		recv = 2;
-#endif  /* CONFIG_ARCH_MT7623 */
-	if((reg_int_val & RX_DONE_INT1))
-		recv = 1;
-#endif
-#endif
-#if defined (DELAY_INT)
-	sysRegWrite(RAETH_FE_INT_STATUS, RX_DLY_INT);
-#else
-	sysRegWrite(RAETH_FE_INT_STATUS, RX_DONE_INT0);
-#endif                        	
-#ifdef CONFIG_RAETH_QDMA
-#if defined (DELAY_INT)
-	sysRegWrite(QFE_INT_STATUS, RX_DLY_INT);
-#else
-	sysRegWrite(QFE_INT_STATUS, (RX_DONE_INT0 | RX_DONE_INT1));
-#endif
-#endif
-
-#if defined (CONFIG_RAETH_HW_LRO)
-	if( reg_int_val & (ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1) ){
-	/* mask interrupts of rx flow to hw lor rings */
-		reg_int_mask = sysRegRead(RAETH_FE_INT_ENABLE);
-		sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1));
-		schedule_work(&ei_local->hw_lro_wq);
-	}
-#endif  /* CONFIG_RAETH_HW_LRO */
-
-	if (((recv == 1) || (pending_recv ==1)) && (tx_ring_full==0))
-	{
-		reg_int_mask = sysRegRead(RAETH_FE_INT_ENABLE);
-#if defined (DELAY_INT)
-		sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(RX_DLY_INT));
-#else
-		sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1));
-#endif //DELAY_INT
-#ifdef CONFIG_RAETH_QDMA
-		reg_int_mask = sysRegRead(QFE_INT_ENABLE);
-#if defined (DELAY_INT)
-		sysRegWrite(QFE_INT_ENABLE, reg_int_mask & ~(RX_DLY_INT));
-#else
-		sysRegWrite(QFE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1));
-#endif //DELAY_INT
-#endif
-
-		pending_recv=0;
-#ifdef WORKQUEUE_BH
-		schedule_work(&ei_local->rx_wq);
-#else
-#if defined (TASKLET_WORKQUEUE_SW)
-		if (working_schedule == 1)
-			schedule_work(&ei_local->rx_wq);
-		else
-#endif
-			tasklet_hi_schedule(&ei_local->rx_tasklet);
-#endif // WORKQUEUE_BH //
-	}
-	else if (recv == 1 && tx_ring_full==1)
-	{
-		pending_recv=1;
-	}
-	else if((recv == 0) && (transmit == 0))
-	{
-		gsw_delay_setting();
-	}
-	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
-#endif
-	return IRQ_HANDLED;
-}
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
-static irqreturn_t ei_tx_interrupt(int irq, void *dev_id)
-#else
-static irqreturn_t ei_tx_interrupt(int irq, void *dev_id, struct pt_regs * regs)
-#endif
-
-{
-#if !defined(CONFIG_RAETH_NAPI)
-	unsigned long reg_int_val;
-	unsigned long reg_int_mask=0;
-	unsigned int recv = 0;
-	unsigned int transmit __maybe_unused = 0;
-	unsigned long flags;
-#endif
-
-
-	struct net_device *dev = (struct net_device *) dev_id;
-	END_DEVICE *ei_local = netdev_priv(dev);
-
-	if (dev == NULL)
-	{
-		printk (KERN_ERR "net_interrupt(): irq %x for unknown device.\n", IRQ_ENET0);
-		return IRQ_NONE;
-	}
-
-#ifdef CONFIG_RAETH_NAPI
-	gsw_delay_setting();
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
-	if(napi_schedule_prep(&ei_local->napi)) {
-#else
-	if(netif_rx_schedule_prep(dev)) {
-#endif
-		atomic_inc(&ei_local->irq_sem);
-		sysRegWrite(RAETH_FE_INT_ENABLE, 0);
-#ifdef CONFIG_RAETH_QDMA
-		sysRegWrite(QFE_INT_ENABLE, 0);
-#endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
-		__napi_schedule(&ei_local->napi);
-#else
-		__netif_rx_schedule(dev);
-#endif
-	}
-#else
-
-	spin_lock_irqsave(&(ei_local->page_lock), flags);
-	reg_int_val = sysRegRead(RAETH_FE_INT_STATUS);
-#ifdef CONFIG_RAETH_QDMA
-	reg_int_val |= sysRegRead(QFE_INT_STATUS);
-#endif
-#if defined (DELAY_INT)
-	if (reg_int_val & RAETH_TX_DLY_INT)
-		transmit = 1;
-
-#if defined(CONFIG_RAETH_PDMA_DVT)
-	raeth_pdma_lro_dly_int_dvt();
-#endif  /* CONFIG_RAETH_PDMA_DVT */
-#else
-	if (reg_int_val & RAETH_TX_DONE_INT0)
-		transmit |= RAETH_TX_DONE_INT0;
-#if defined (CONFIG_RAETH_QOS)
-	if (reg_int_val & TX_DONE_INT1)
-		transmit |= TX_DONE_INT1;
-	if (reg_int_val & TX_DONE_INT2)
-		transmit |= TX_DONE_INT2;
-	if (reg_int_val & TX_DONE_INT3)
-		transmit |= TX_DONE_INT3;
-#endif //CONFIG_RAETH_QOS
-
-#endif //DELAY_INT
-
-#if defined (DELAY_INT)
-	sysRegWrite(RAETH_FE_INT_STATUS, TX_DLY_INT);
-#else
-	sysRegWrite(RAETH_FE_INT_STATUS, (TX_DONE_INT3 | TX_DONE_INT2 |TX_DONE_INT1 | TX_DONE_INT0));
-#endif 
-#ifdef CONFIG_RAETH_QDMA
-#if defined (DELAY_INT)
-	sysRegWrite(QFE_INT_STATUS, RLS_DLY_INT);
-#else
-	sysRegWrite(QFE_INT_STATUS, RLS_DONE_INT);
-#endif
-#endif
-
-	if(transmit)
-		ei_xmit_housekeeping(0);                        	
-	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
-#endif
-
-	return IRQ_HANDLED;                        	
-}
-#endif
-
 
 /**
  * ei_interrupt - handle controler interrupt
@@ -1827,9 +1283,7 @@ static irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 #endif
 {
 #if !defined(CONFIG_RAETH_NAPI)
-	unsigned long reg_int_val = 0;
-	unsigned long reg_int_val_p = 0;
-	unsigned long reg_int_val_q = 0;
+	unsigned long reg_int_val;
 	unsigned long reg_int_mask=0;
 	unsigned int recv = 0;
 	unsigned int transmit __maybe_unused = 0;
@@ -1873,38 +1327,22 @@ static irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 #else
 
 	spin_lock_irqsave(&(ei_local->page_lock), flags);
-	reg_int_val_p = sysRegRead(RAETH_FE_INT_STATUS);
-#if defined(CONFIG_RAETH_INT_DBG)
-	IntStatsUpdate(reg_int_val);
-#endif	/* CONFIG_RAETH_INT_DBG */
-
+	reg_int_val = sysRegRead(RAETH_FE_INT_STATUS);
 #ifdef CONFIG_RAETH_QDMA	
-
-	reg_int_val_q = sysRegRead(QFE_INT_STATUS);
+	reg_int_val |= sysRegRead(QFE_INT_STATUS);
 #endif
-	reg_int_val = reg_int_val_p | reg_int_val_q;
+
 #if defined (DELAY_INT)
 	if((reg_int_val & RX_DLY_INT))
 		recv = 1;
 	
 	if (reg_int_val & RAETH_TX_DLY_INT)
 		transmit = 1;
-
-#if defined(CONFIG_RAETH_PDMA_DVT)
-    raeth_pdma_lro_dly_int_dvt();
-#endif  /* CONFIG_RAETH_PDMA_DVT */
-
 #else
-	if((reg_int_val & (RX_DONE_INT0 | RX_DONE_INT3 | RX_DONE_INT2 | RX_DONE_INT1)))
+	if((reg_int_val & RX_DONE_INT0))
 		recv = 1;
 
-#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
-#if defined(CONFIG_ARCH_MT7623)    
-    if((reg_int_val & RX_DONE_INT3))
-        recv = 3;
-    if((reg_int_val & RX_DONE_INT2))
-        recv = 2;
-#endif  /* CONFIG_ARCH_MT7623 */
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING) 
 	if((reg_int_val & RX_DONE_INT1))
 		recv = 1;
 #endif
@@ -1922,31 +1360,25 @@ static irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 #endif //DELAY_INT
 
+#if defined (DELAY_INT)
+	sysRegWrite(RAETH_FE_INT_STATUS, RAETH_FE_INT_DLY_INIT);
+#else
+	sysRegWrite(RAETH_FE_INT_STATUS, RAETH_FE_INT_ALL);
+#endif
 #ifdef CONFIG_RAETH_QDMA
-	sysRegWrite(QFE_INT_STATUS, reg_int_val_q); 
+#if defined (DELAY_INT)
+	sysRegWrite(QFE_INT_STATUS, QFE_INT_DLY_INIT);
+#else
+	sysRegWrite(QFE_INT_STATUS, QFE_INT_ALL);
+#endif
 #endif	
 
-#if defined (CONFIG_RAETH_HW_LRO)
-    if( reg_int_val & (ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1) ){
-        /* mask interrupts of rx flow to hw lor rings */
-        reg_int_mask = sysRegRead(RAETH_FE_INT_ENABLE);
-        sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1));
-        schedule_work(&ei_local->hw_lro_wq);
-    }
-#endif  /* CONFIG_RAETH_HW_LRO */
-
 #if LINUX_VERSION_CODE > KERNEL_VERSION(3,10,0)
-#if defined (CONFIG_RALINK_MT7620)|| defined (CONFIG_RALINK_MT7621) || defined(CONFIG_ARCH_MT7628)
 	if(transmit)
 		ei_xmit_housekeeping(0);
 #else
-	ei_xmit_housekeeping(0);
-#endif		
-#else
 		ei_xmit_housekeeping(0);
 #endif
-    //QWERT
-	sysRegWrite(RAETH_FE_INT_STATUS, reg_int_val_p);
 
 	if (((recv == 1) || (pending_recv ==1)) && (tx_ring_full==0))
 	{
@@ -1954,14 +1386,14 @@ static irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 #if defined (DELAY_INT)
 		sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(RX_DLY_INT));
 #else
-		sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3));
+		sysRegWrite(RAETH_FE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1));
 #endif //DELAY_INT
 #ifdef CONFIG_RAETH_QDMA		
 		reg_int_mask = sysRegRead(QFE_INT_ENABLE);
 #if defined (DELAY_INT)
 		sysRegWrite(QFE_INT_ENABLE, reg_int_mask & ~(RX_DLY_INT));
 #else
-		sysRegWrite(QFE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1 | RX_DONE_INT2 | RX_DONE_INT3));
+		sysRegWrite(QFE_INT_ENABLE, reg_int_mask & ~(RX_DONE_INT0 | RX_DONE_INT1));
 #endif //DELAY_INT
 #endif
 
@@ -1985,11 +1417,11 @@ static irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	{
 		gsw_delay_setting();
 #if defined (CONFIG_RALINK_MT7621)
-#if defined(CONFIG_MODEL_RTAC85U) || defined(CONFIG_MODEL_RTAC85P) || defined(CONFIG_MODEL_RTAC65U) || defined(CONFIG_MODEL_RTN800HP)	|| defined(CONFIG_MODEL_RTACRH26) //ASUS_EXT
+#if defined(RTAC1200GA1) || defined(RTACRH26)//ASUS
 	    	esw_link_status_changed(4, dev_id);
 #else
 //#error "Define WAN Port Check"	    
-#endif
+#endif	    
 #endif
 	}
 	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
@@ -1999,24 +1431,22 @@ static irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 }
 
 #if defined (CONFIG_RALINK_RT6855) || defined (CONFIG_RALINK_RT6855A) || \
-    defined (CONFIG_RALINK_MT7620)|| defined (CONFIG_RALINK_MT7621) || defined(CONFIG_ARCH_MT7623)
+    defined (CONFIG_RALINK_MT7620)|| defined (CONFIG_RALINK_MT7621)
 static void esw_link_status_changed(int port_no, void *dev_id)
 {
     unsigned int reg_val;
-    //struct net_device *dev = (struct net_device *) dev_id;
-    struct net_device *dev = dev_raether;
+    struct net_device *dev = (struct net_device *) dev_id;
     END_DEVICE *ei_local = netdev_priv(dev);
 
 #if defined (CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_RT6855A) || \
     defined (CONFIG_RALINK_MT7620)
     reg_val = *((volatile u32 *)(RALINK_ETH_SW_BASE+ 0x3008 + (port_no*0x100)));
-#elif defined (CONFIG_RALINK_MT7621) || defined(CONFIG_ARCH_MT7623)
+#elif defined (CONFIG_RALINK_MT7621)
     mii_mgr_read(31, (0x3008 + (port_no*0x100)), &reg_val);
-#endif    
+#endif
+
     if(reg_val & 0x1) {
 	printk("ESW: Link Status Changed - Port%d Link UP\n", port_no);
-
-#if 0	/* not used in ASUS */
 #if defined (CONFIG_WAN_AT_P0)
 	if(port_no==0) {
 	    schedule_work(&ei_local->kill_sig_wq);
@@ -2026,15 +1456,13 @@ static void esw_link_status_changed(int port_no, void *dev_id)
 	    schedule_work(&ei_local->kill_sig_wq);
 	}
 #endif
-#endif	/* 0 */
     } else {	    
 	printk("ESW: Link Status Changed - Port%d Link Down\n", port_no);
-
     }
 }
 #endif
 
-#if defined (CONFIG_RT_3052_ESW) && ! defined(CONFIG_RALINK_MT7621) && ! defined(CONFIG_ARCH_MT7623)
+#if defined (CONFIG_RT_3052_ESW) && ! defined(CONFIG_RALINK_MT7621)
 static irqreturn_t esw_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
@@ -2203,9 +1631,7 @@ static irqreturn_t esw_interrupt(int irq, void *dev_id)
 #endif
 			goto out;
 
-#if 0	/* not used in ASUS */
 		schedule_work(&ei_local->kill_sig_wq);
-#endif	/* 0 */
 out:
 		stat = stat_curr;
 	}
@@ -2220,14 +1646,13 @@ out:
 
 
 
-#elif defined (CONFIG_RT_3052_ESW) && (defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ARCH_MT7623))
+#elif defined (CONFIG_RT_3052_ESW) && defined(CONFIG_RALINK_MT7621)
 
 static irqreturn_t esw_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned int reg_int_val;
-	//struct net_device *dev = (struct net_device *) dev_id;
-	struct net_device *dev = dev_raether;
+	struct net_device *dev = (struct net_device *) dev_id;
 	END_DEVICE *ei_local = netdev_priv(dev);
 
 	spin_lock_irqsave(&(ei_local->page_lock), flags);
@@ -2251,6 +1676,7 @@ static irqreturn_t esw_interrupt(int irq, void *dev_id)
 	}
 
         mii_mgr_write(31, 0x700c, 0x1f); //ack switch link change
+	
 	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
 	return IRQ_HANDLED;
 }
@@ -2264,6 +1690,38 @@ static int ei_start_xmit_fake(struct sk_buff* skb, struct net_device *dev)
 }
 
 
+#if defined (CONFIG_RALINK_RT3052) || defined (CONFIG_RALINK_RT3352) || defined (CONFIG_RALINK_RT5350) 
+void dump_phy_reg(int port_no, int from, int to, int is_local)
+{
+        u32 i=0;
+        u32 temp=0;
+
+        if(is_local==0) {
+            printk("Global Register\n");
+            printk("===============");
+            mii_mgr_write(0, 31, 0); //select global register
+            for(i=from;i<=to;i++) {
+                if(i%8==0) {
+                    printk("\n");
+                }
+                mii_mgr_read(port_no,i, &temp);
+                printk("%02d: %04X ",i, temp);
+            }
+        } else {
+            mii_mgr_write(0, 31, 0x8000); //select local register
+                printk("\n\nLocal Register Port %d\n",port_no);
+                printk("===============");
+                for(i=from;i<=to;i++) {
+                    if(i%8==0) {
+                        printk("\n");
+                    }
+                    mii_mgr_read(port_no,i, &temp);
+                    printk("%02d: %04X ",i, temp);
+                }
+        }
+        printk("\n");
+}
+#else
 void dump_phy_reg(int port_no, int from, int to, int is_local, int page_no)
 {
 
@@ -2303,13 +1761,16 @@ void dump_phy_reg(int port_no, int from, int to, int is_local, int page_no)
         printk("\n");
 }
 
+#endif
+
 int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 #if defined(CONFIG_RT_3052_ESW) || defined(CONFIG_RAETH_QDMA)
 		esw_reg reg;
 #endif
-#if defined(CONFIG_RALINK_MT7620) || defined(CONFIG_RALINK_MT7621) || \
-    defined (CONFIG_RALINK_MT7628) || defined (CONFIG_ARCH_MT7623)
+#if defined(CONFIG_RALINK_RT3352) || defined(CONFIG_RALINK_RT5350) || \
+    defined (CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_RT6855A) || \
+    defined(CONFIG_RALINK_MT7620) || defined(CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
         esw_rate ratelimit;
 #endif
 #if defined(CONFIG_RT_3052_ESW)
@@ -2317,42 +1778,33 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	unsigned int value = 0;
 #endif
 
-	int ret = 0;
-	END_DEVICE *ei_local = netdev_priv(dev);
 	ra_mii_ioctl_data mii;
-	spin_lock_irq(&ei_local->page_lock);
-
 	switch (cmd) {
-#if defined(CONFIG_RAETH_QDMA)
+#if defined(CONFIG_RAETH_QDMA)		
 #define _HQOS_REG(x)	(*((volatile u32 *)(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + x)))
 		case RAETH_QDMA_REG_READ:
 			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
-			if (reg.off > REG_HQOS_MAX) {
-				ret = -EINVAL;
-				break;
-			}
+			if (reg.off > REG_HQOS_MAX)
+				return -EINVAL;
 			reg.val = _HQOS_REG(reg.off);
 			//printk("read reg off:%x val:%x\n", reg.off, reg.val);
 			copy_to_user(ifr->ifr_data, &reg, sizeof(reg));
 			break;
 		case RAETH_QDMA_REG_WRITE:
 			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
-			if (reg.off > REG_HQOS_MAX) {
-				ret = -EINVAL;
-				break;
-			}
+			if (reg.off > REG_HQOS_MAX)
+				return -EINVAL;
 			_HQOS_REG(reg.off) = reg.val;
 			//printk("write reg off:%x val:%x\n", reg.off, reg.val);
 			break;
-#if 0
                 case RAETH_QDMA_READ_CPU_CLK:
                         copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
                         reg.val = get_surfboard_sysclk();
                         //printk("read reg off:%x val:%x\n", reg.off, reg.val);
 			copy_to_user(ifr->ifr_data, &reg, sizeof(reg));
 			break;
-#endif			
-		case RAETH_QDMA_QUEUE_MAPPING:
+			
+        	case RAETH_QDMA_QUEUE_MAPPING:
 			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
 				if((reg.off&0x100) == 0x100){
 					lan_wan_separate = 1;
@@ -2361,20 +1813,8 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 					lan_wan_separate = 0;
 				}
 			M2Q_table[reg.off] = reg.val;
+			//printk(" M2Q_table[%d] is %d.\n", reg.off, M2Q_table[reg.off]);
 	  	break;
-#if defined(CONFIG_HW_SFQ)
-      case RAETH_QDMA_SFQ_WEB_ENABLE:
-			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
-			if((reg.val) == 0x1){
-				web_sfq_enable = 1;
-	
-			}else{
-				web_sfq_enable = 0;
-			}
-	  	break;
-#endif	  	
-	  	
-	
 #endif	  	
 		case RAETH_MII_READ:
 			copy_from_user(&mii, ifr->ifr_data, sizeof(mii));
@@ -2388,7 +1828,7 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			//printk("phy %d, reg %d, val 0x%x\n", mii.phy_id, mii.reg_num, mii.val_in);
 			mii_mgr_write(mii.phy_id, mii.reg_num, mii.val_in);
 			break;
-#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7620) || defined (CONFIG_ARCH_MT7623)			
+#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7620) || defined (CONFIG_ARCH_MT8590)
 		case RAETH_MII_READ_CL45:
 			copy_from_user(&mii, ifr->ifr_data, sizeof(mii));
 			//mii_mgr_cl45_set_address(mii.port_num, mii.dev_addr, mii.reg_addr);
@@ -2406,31 +1846,45 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #define _ESW_REG(x)	(*((volatile u32 *)(RALINK_ETH_SW_BASE + x)))
 		case RAETH_ESW_REG_READ:
 			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
-			if (reg.off > REG_ESW_MAX) {
+			if (reg.off > REG_ESW_MAX)
+			{
 #if defined (CONFIG_RALINK_MT7621) //ASUS
 			   	printk("mt7621 read: over offset\n");
-#endif
-				ret = -EINVAL;
-				break;
-			}
+#endif			   
+				return -EINVAL;
+			}	
 			reg.val = _ESW_REG(reg.off);
 			//printk("read reg off:%x val:%x\n", reg.off, reg.val);
 			copy_to_user(ifr->ifr_data, &reg, sizeof(reg));
 			break;
 		case RAETH_ESW_REG_WRITE:
 			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
-			if (reg.off > REG_ESW_MAX) {
+			if (reg.off > REG_ESW_MAX)
+			{
 #if defined (CONFIG_RALINK_MT7621) //ASUS
 			   	printk("mt7621 write: over offset\n");
-#endif
-				ret = -EINVAL;
-				break;
-			}
+#endif				
+				return -EINVAL;
+			}	
 			_ESW_REG(reg.off) = reg.val;
 			//printk("write reg off:%x val:%x\n", reg.off, reg.val);
 			break;
 		case RAETH_ESW_PHY_DUMP:
 			copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
+#if defined (CONFIG_RALINK_RT3052) || defined (CONFIG_RALINK_RT3352) || defined (CONFIG_RALINK_RT5350)
+			if (reg.val ==32 ) {//dump all phy register
+			    /* Global Register 0~31
+			     * Local Register 0~31
+			     */
+			    dump_phy_reg(0, 0, 31, 0); //dump global register
+			    for(offset=0;offset<5;offset++) {
+				dump_phy_reg(offset, 0, 31, 1); //dump local register
+			    }
+			} else {
+			    dump_phy_reg(reg.val, 0, 31, 0); //dump global register
+			    dump_phy_reg(reg.val, 0, 31, 1); //dump local register
+			}
+#else
 			/* SPEC defined Register 0~15
 			 * Global Register 16~31 for each page
 			 * Local Register 16~31 for each page
@@ -2488,9 +1942,10 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				dump_phy_reg(reg.val, 16, 31, 1, 2); //dump local page 2
 				dump_phy_reg(reg.val, 16, 31, 1, 3); //dump local page 3
 			}
+#endif
 			break;
 
-#if defined (CONFIG_RALINK_MT7628)
+#if defined (CONFIG_RALINK_RT3352) || defined (CONFIG_RALINK_RT5350) || defined (CONFIG_RALINK_MT7628)
 #define _ESW_REG(x)	(*((volatile u32 *)(RALINK_ETH_SW_BASE + x)))
 		case RAETH_ESW_INGRESS_RATE:
 			copy_from_user(&ratelimit, ifr->ifr_data, sizeof(ratelimit));
@@ -2551,11 +2006,11 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			_ESW_REG(offset) = value;
 			break;
 #elif  defined (CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_RT6855A) || \
-       defined(CONFIG_RALINK_MT7620) || defined(CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)
+       defined(CONFIG_RALINK_MT7620) || defined(CONFIG_RALINK_MT7621)
 #define _ESW_REG(x)	(*((volatile u32 *)(RALINK_ETH_SW_BASE + x)))
 		case RAETH_ESW_INGRESS_RATE:
 			copy_from_user(&ratelimit, ifr->ifr_data, sizeof(ratelimit));
-#if defined(CONFIG_RALINK_RT6855A) || defined(CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)
+#if defined(CONFIG_RALINK_RT6855A) || defined(CONFIG_RALINK_MT7621)
 			offset = 0x1800 + (0x100 * ratelimit.port);
 #else
 			offset = 0x1080 + (0x100 * ratelimit.port);
@@ -2589,10 +2044,10 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				}
 			}
 			printk("offset = 0x%4x value=0x%x\n\r", offset, value);
-#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)	
-			mii_mgr_write(0x1f, offset, value);
-#else			
+#ifndef CONFIG_RALINK_MT7621			
 			_ESW_REG(offset) = value;
+#else			
+			mii_mgr_write(0x1f, offset, value);
 #endif			
 			break;
 
@@ -2628,22 +2083,20 @@ int ei_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				}
 			}
 			printk("offset = 0x%4x value=0x%x\n\r", offset, value);
-#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)	
-			mii_mgr_write(0x1f, offset, value);
-#else
+#ifndef CONFIG_RALINK_MT7621			
 			_ESW_REG(offset) = value;
+#else
+			mii_mgr_write(0x1f, offset, value);
 #endif
 			break;
 #endif
 #endif // CONFIG_RT_3052_ESW
 		default:
-			ret = -EOPNOTSUPP;
-			break;
+			return -EOPNOTSUPP;
 
 	}
 
-	spin_unlock_irq(&ei_local->page_lock);
-	return ret;
+	return 0;
 }
 
 /*
@@ -2748,24 +2201,26 @@ void ra2880_setup_dev_fptable(struct net_device *dev)
 /* reset frame engine */
 void fe_reset(void)
 {
+#if defined (CONFIG_RALINK_RT6855A)
+	/* FIXME */
+#else
 	u32 val;
-
 	val = sysRegRead(RSTCTRL);
 
 // RT5350 need to reset ESW and FE at the same to avoid PDMA panic //	
-#if defined (CONFIG_RALINK_MT7628)
+#if defined (CONFIG_RALINK_RT5350) || defined (CONFIG_RALINK_MT7628)
 	val = val | RALINK_FE_RST | RALINK_ESW_RST ;
 #else
 	val = val | RALINK_FE_RST;
 #endif
 	sysRegWrite(RSTCTRL, val);
-#if defined (CONFIG_RALINK_MT7620) || defined (CONFIG_RALINK_MT7628)
+#if defined (CONFIG_RALINK_RT5350) || defined (CONFIG_RALINK_MT7620) || defined (CONFIG_RALINK_MT7628)
 	val = val & ~(RALINK_FE_RST | RALINK_ESW_RST);
 #else
 	val = val & ~(RALINK_FE_RST);
 #endif
-
 	sysRegWrite(RSTCTRL, val);
+#endif
 }
 
 /* set TRGMII */
@@ -2823,37 +2278,23 @@ void trgmii_set_7530(void)
 #if 1
 	//CL45 command
 	//PLL to 150Mhz	
-	u32 regValue;
-
 	mii_mgr_write(0, 13, 0x1f);
 	mii_mgr_write(0, 14, 0x404);
 	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_read(31, 0x7800, &regValue);
-	regValue = (regValue >> 9) & 0x3;
-	if(regValue == 0x3) { //25Mhz Xtal
-		mii_mgr_write(0, 14, 0x0C00);//25Mhz XTAL for 150Mhz CLK
-	} else if(regValue == 0x2) { //40Mhz
-		mii_mgr_write(0, 14, 0x0780);//40Mhz XTAL for 150Mhz CLK
-	}		 
+	mii_mgr_write(0, 14, 0x0780);//40Mhz XTAL for 150Mhz CLK
 	//mii_mgr_write(0, 14, 0x0C00);//ori
 	mdelay(1);
 
 	mii_mgr_write(0, 13, 0x1f);
 	mii_mgr_write(0, 14, 0x409);
 	mii_mgr_write(0, 13, 0x401f);
-	if(regValue == 0x3) // 25MHz
-		mii_mgr_write(0, 14, 0x57);
-	else
-		mii_mgr_write(0, 14, 0x87);
+	mii_mgr_write(0, 14, 0x57);
 	mdelay(1);
 
 	mii_mgr_write(0, 13, 0x1f);
 	mii_mgr_write(0, 14, 0x40a);
 	mii_mgr_write(0, 13, 0x401f);
-	if(regValue == 0x3) // 25MHz
-		mii_mgr_write(0, 14, 0x57);
-	else
-		mii_mgr_write(0, 14, 0x87);
+	mii_mgr_write(0, 14, 0x57);
 
 //PLL BIAS en
 	mii_mgr_write(0, 13, 0x1f);
@@ -2971,7 +2412,7 @@ int __init rather_probe(struct net_device *dev)
 
 	fe_reset();
 
-	//configure a default MAC address for setup
+	//Get mac0 address from flash
 #ifdef RA_MTD_RW_BY_NUM
 	i = ra_mtd_read(2, GMAC0_OFFSET, 6, addr.sa_data);
 #else
@@ -2983,8 +2424,8 @@ int __init rather_probe(struct net_device *dev)
 	    (memcmp(addr.sa_data, zero2, 6) == 0)) {
 		unsigned char mac_addr01234[5] = {0x00, 0x0C, 0x43, 0x28, 0x80};
 		net_srandom(jiffies);
-	memcpy(addr.sa_data, mac_addr01234, 5);
-	addr.sa_data[5] = net_random()&0xFF;
+		memcpy(addr.sa_data, mac_addr01234, 5);
+		addr.sa_data[5] = net_random()&0xFF;
 	}
 
 #ifdef CONFIG_RAETH_NAPI
@@ -2992,6 +2433,7 @@ int __init rather_probe(struct net_device *dev)
 	netif_napi_add(dev, &ei_local->napi, raeth_clean, 128);
 #endif
 #endif
+
 	ei_set_mac_addr(dev, &addr);
 	spin_lock_init(&ei_local->page_lock);
 	ether_setup(dev);
@@ -3189,22 +2631,18 @@ void RAETH_Init_PSEUDO(pEND_DEVICE pAd, struct net_device *net_dev)
 	dev->mtu = 1500;
 #endif
 
-#if defined (CONFIG_RAETH_HW_LRO) 
-    dev->features |= NETIF_F_HW_CSUM;
-#else
 	dev->features |= NETIF_F_IP_CSUM; /* Can checksum TCP/UDP over IPv4 */
-#endif  /* CONFIG_RAETH_HW_LRO */
 
 #if defined(CONFIG_RALINK_MT7620)
 #if defined (CONFIG_RAETH_TSO)
-	if ((sysRegRead(RALINK_SYSCTL_BASE+0xC) & 0xf) >= 0x5) {
+	if ((sysRegRead(0xB000000C) & 0xf) >= 0x5) {
 		dev->features |= NETIF_F_SG;
 		dev->features |= NETIF_F_TSO;
 	}
 #endif // CONFIG_RAETH_TSO //
 
 #if defined (CONFIG_RAETH_TSOV6)
-	if ((sysRegRead(RALINK_SYSCTL_BASE+0xC) & 0xf) >= 0x5) {
+	if ((sysRegRead(0xB000000C) & 0xf) >= 0x5) {
 		dev->features |= NETIF_F_TSO6;
 		dev->features |= NETIF_F_IPV6_CSUM; /* Can checksum TCP/UDP over IPv6 */
 	}
@@ -3244,94 +2682,6 @@ void RAETH_Init_PSEUDO(pEND_DEVICE pAd, struct net_device *net_dev)
 }
 #endif
 
-
-#if defined(CONFIG_ARCH_MT7623)
-void fe_do_reset(void)
-{
-	u32 adma_rx_dbg0_r = 0;
-	u32 dbg_rx_curr_state, rx_fifo_wcnt;
-	u32 dbg_cdm_lro_rinf_afifo_rempty, dbg_cdm_eof_rdy_afifo_empty;
-	u32 reg_tmp, loop_count;
-	unsigned long flags;
-	END_DEVICE *ei_local = netdev_priv(dev_raether);
-
-	fe_reset_times++;
-	/* do CDM/PDMA reset */
-	printk("[%s] CDM/PDMA reset (%d times)!!!\n", 
-			__func__, fe_reset_times);
-	spin_lock_irqsave(&(ei_local->page_lock), flags);
-	reg_tmp = sysRegRead(FE_GLO_MISC);
-	reg_tmp |= 0x1;
-	sysRegWrite(FE_GLO_MISC, reg_tmp);
-	wmb();
-	mdelay(10);
-	reg_tmp = sysRegRead(ADMA_LRO_CTRL_DW3);
-	reg_tmp |= (0x1 << 14);
-	sysRegWrite(ADMA_LRO_CTRL_DW3, reg_tmp);
-	wmb();
-	loop_count = 0;
-	do{
-		adma_rx_dbg0_r = sysRegRead(ADMA_RX_DBG0);
-		dbg_rx_curr_state = (adma_rx_dbg0_r >> 16) & 0x7f;
-		rx_fifo_wcnt = (adma_rx_dbg0_r >> 8) & 0x3f;
-		dbg_cdm_lro_rinf_afifo_rempty = (adma_rx_dbg0_r >> 7) & 0x1;
-		dbg_cdm_eof_rdy_afifo_empty = (adma_rx_dbg0_r >> 6) & 0x1;
-		loop_count++;
-		if(loop_count >= 100){
-			printk("[%s] loop_count timeout!!!\n");
-			break;
-		}
-		mdelay(10);
-	}while(((dbg_rx_curr_state != 0x17) && (dbg_rx_curr_state != 0x00)) ||
-		(rx_fifo_wcnt != 0) ||
-		(!dbg_cdm_lro_rinf_afifo_rempty) ||
-		(!dbg_cdm_eof_rdy_afifo_empty));
-	reg_tmp = sysRegRead(ADMA_LRO_CTRL_DW3);
-	reg_tmp &= 0xffffbfff;
-	sysRegWrite(ADMA_LRO_CTRL_DW3, reg_tmp);
-	wmb();
-	reg_tmp = sysRegRead(FE_GLO_MISC);
-	reg_tmp &= 0xfffffffe;
-	sysRegWrite(FE_GLO_MISC, reg_tmp);
-	wmb();
-	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
-}
-
-static int fe_reset_thread(void)
-{
-	u32 adma_rx_dbg0_r = 0;
-	u32 dbg_rx_curr_state, rx_fifo_wcnt;
-	u32 dbg_cdm_lro_rinf_afifo_rempty, dbg_cdm_eof_rdy_afifo_empty;
-	
-	printk("%s called\n", __func__);
-
-	for(;;){		
-		adma_rx_dbg0_r = sysRegRead(ADMA_RX_DBG0);
-		dbg_rx_curr_state = (adma_rx_dbg0_r >> 16) & 0x7f;
-		rx_fifo_wcnt = (adma_rx_dbg0_r >> 8) & 0x3f;
-		dbg_cdm_lro_rinf_afifo_rempty = (adma_rx_dbg0_r >> 7) & 0x1;
-		dbg_cdm_eof_rdy_afifo_empty = (adma_rx_dbg0_r >> 6) & 0x1;
-		//printk("%s scheduled\n", __func__);
-
-		/* check if PSE P0 hang */
-		if( ((dbg_rx_curr_state == 0x17) || (dbg_rx_curr_state == 0x00)) &&
-		       (rx_fifo_wcnt & 0x20) && 
-		       dbg_cdm_lro_rinf_afifo_rempty && 
-		       dbg_cdm_eof_rdy_afifo_empty )
-		{
-			fe_do_reset();
-		}
-		
-		msleep(FE_RESET_POLLING_MS);
-		if(kthread_should_stop())
-			break;
-	}
-
-	printk("%s leaved\n", __func__);
-	return 0;
-}
-#endif	/* CONFIG_ARCH_MT7623 */
-
 /**
  * ei_open - Open/Initialize the ethernet port.
  * @dev: network device to initialize
@@ -3342,12 +2692,7 @@ static int fe_reset_thread(void)
 int ei_open(struct net_device *dev)
 {
 	int i, err;
-	struct sockaddr addr;
-	unsigned char zero1[6]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-	unsigned char zero2[6]={0x00,0x00,0x00,0x00,0x00,0x00};
-#if !defined (CONFIG_MT7623_FPGA)
 	unsigned long flags;
-#endif
 	END_DEVICE *ei_local;
 
 #ifdef CONFIG_RAETH_LRO
@@ -3358,19 +2703,6 @@ int ei_open(struct net_device *dev)
 #define RT2860_NVRAM	0
 #endif
 #endif // CONFIG_RAETH_LRO //
-	//Get mac0 address from flash
-#ifdef RA_MTD_RW_BY_NUM
-	i = ra_mtd_read(2, GMAC0_OFFSET, 6, addr.sa_data);
-#else
-	i = ra_mtd_read_nm("Factory", GMAC0_OFFSET, 6, addr.sa_data);
-#endif
-	printk("%2X:%2X:%2X:%2X:%2X:%2X\n", addr.sa_data[0], addr.sa_data[1], addr.sa_data[2], addr.sa_data[3], addr.sa_data[4], addr.sa_data[5]);
-	//If reading mtd failed or mac0 is empty, generate a mac address
-	if (i >= 0 && (memcmp(addr.sa_data, zero1, 6) != 0) && !(addr.sa_data[0] & 0x1) && 
-	    (memcmp(addr.sa_data, zero2, 6) != 0)) {
-		ei_set_mac_addr(dev, &addr);
-		ether_setup(dev);
-	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	if (!try_module_get(THIS_MODULE))
@@ -3412,43 +2744,18 @@ int ei_open(struct net_device *dev)
 #if defined (CONFIG_RAETH_SKB_RECYCLE_2K)
                 ei_local->netrx0_skbuf[i] = skbmgr_dev_alloc_skb2k();
 #else
-#ifdef CONFIG_ETH_SLAB_ALLOC_SKB
-		ei_local->netrx0_skbuf[i] = alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN + NET_SKB_PAD, GFP_ATOMIC);
-#else
                 ei_local->netrx0_skbuf[i] = dev_alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN);
-#endif
 #endif
                 if (ei_local->netrx0_skbuf[i] == NULL ) {
                         printk("rx skbuff buffer allocation failed!");
 		} else {
-#ifdef CONFIG_ETH_SLAB_ALLOC_SKB
-			skb_reserve(ei_local->netrx0_skbuf[i], NET_SKB_PAD);
-#endif
-
 #if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
 		    skb_reserve(ei_local->netrx0_skbuf[i], NET_IP_ALIGN);
 #endif
 		}
 		
+
 #if defined (CONFIG_RAETH_MULTIPLE_RX_RING) 
-#if defined(CONFIG_ARCH_MT7623)
-		ei_local->netrx3_skbuf[i] = dev_alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN);
-		if (ei_local->netrx3_skbuf[i] == NULL ) {
-			printk("rx3 skbuff buffer allocation failed!");
-		} else {
-#if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
-		    skb_reserve(ei_local->netrx3_skbuf[i], NET_IP_ALIGN);
-#endif
-		}
-		ei_local->netrx2_skbuf[i] = dev_alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN);
-		if (ei_local->netrx2_skbuf[i] == NULL ) {
-			printk("rx2 skbuff buffer allocation failed!");
-		} else {
-#if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
-		    skb_reserve(ei_local->netrx2_skbuf[i], NET_IP_ALIGN);
-#endif
-		}
-#endif  /* CONFIG_ARCH_MT7623 */
 		ei_local->netrx1_skbuf[i] = dev_alloc_skb(MAX_RX_LENGTH + NET_IP_ALIGN);
                 if (ei_local->netrx1_skbuf[i] == NULL ) {
                         printk("rx1 skbuff buffer allocation failed!");
@@ -3460,64 +2767,15 @@ int ei_open(struct net_device *dev)
 #endif
         }
 
-#if defined (CONFIG_RAETH_HW_LRO) 
-	ei_local->hw_lro_sdl_size = MAX_LRO_RX_LENGTH;
-	printk("ei_local->hw_lro_sdl_size=%d\n", ei_local->hw_lro_sdl_size);
 
-	for ( i = 0; i < NUM_LRO_RX_DESC; i++){
-		ei_local->netrx3_skbuf[i] = dev_alloc_skb(MAX_LRO_RX_LENGTH + NET_IP_ALIGN);
-		if (ei_local->netrx3_skbuf[i] == NULL ) {
-			printk("rx3 skbuff buffer allocation failed!");
-		} else {
-#if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
-		    skb_reserve(ei_local->netrx3_skbuf[i], NET_IP_ALIGN);
-#endif
-		}
-		ei_local->netrx2_skbuf[i] = dev_alloc_skb(MAX_LRO_RX_LENGTH + NET_IP_ALIGN);
-		if (ei_local->netrx2_skbuf[i] == NULL ) {
-			printk("rx2 skbuff buffer allocation failed!");
-		} else {
-#if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
-		    skb_reserve(ei_local->netrx2_skbuf[i], NET_IP_ALIGN);
-#endif
-		}
-		ei_local->netrx1_skbuf[i] = dev_alloc_skb(MAX_LRO_RX_LENGTH + NET_IP_ALIGN);
-		if (ei_local->netrx1_skbuf[i] == NULL ) {
-			printk("rx1 skbuff buffer allocation failed!");
-		} else {
-#if !defined (CONFIG_RAETH_SCATTER_GATHER_RX_DMA)
-		    skb_reserve(ei_local->netrx1_skbuf[i], NET_IP_ALIGN);
-#endif
-		}
-	}
-#endif	/* CONFIG_RAETH_HW_LRO */
-
-	
 #if defined (CONFIG_GE1_TRGMII_FORCE_1200) && defined (CONFIG_MT7621_ASIC)
 	trgmii_set_7621(); //reset FE/GMAC in this function
 #endif
-
-#if defined(CONFIG_ARCH_MT7623)
-	/*Reset GMAC*/
-	*((volatile u32 *)(RALINK_SYSCTL_BASE+0x34)) = 0x00800000;
-	*((volatile u32 *)(RALINK_SYSCTL_BASE+0x34)) = 0x00000000;
-#endif
-        fe_dma_init(dev);
 	
-#if defined (CONFIG_RAETH_HW_LRO)
-    fe_hw_lro_init(dev);
-#endif  /* CONFIG_RAETH_HW_LRO */
-
+        fe_dma_init(dev);
 	fe_sw_init(); //initialize fe and switch register
-#if defined (CONFIG_MIPS)
 	err = request_irq( dev->irq, ei_interrupt, IRQF_DISABLED, dev->name, dev);	// try to fix irq in open
-#else
-	err = request_irq( ei_local->irq0, ei_interrupt, IRQF_TRIGGER_LOW, dev->name, dev);	// try to fix irq in open
-#if defined (CONFIG_RAETH_TX_RX_INT_SEPARATION)	
-	err = request_irq( ei_local->irq1, ei_tx_interrupt, IRQF_TRIGGER_LOW, "eth_tx", dev);   // try to fix irq in open
-	err = request_irq( ei_local->irq2, ei_rx_interrupt, IRQF_TRIGGER_LOW, "eth_rx", dev);   // try to fix irq in open
-#endif
-#endif	
+	
 	if (err)
 	    return err;
 
@@ -3526,14 +2784,11 @@ int ei_open(struct net_device *dev)
 	} else {
 	    printk("dev->dev_addr is empty !\n");
 	} 
-/*TODO: MT7623 MCM INT */
-#if defined (CONFIG_RT_3052_ESW) && !defined(CONFIG_ARCH_MT7623)
+#if defined (CONFIG_RT_3052_ESW)
 	err = request_irq(SURFBOARDINT_ESW, esw_interrupt, IRQF_DISABLED, "Ralink_ESW", dev);
 	if (err)
 		return err;
-#if 0	/* not used in ASUS */
 	INIT_WORK(&ei_local->kill_sig_wq, kill_sig_workq);
-#endif 	/* 0 */
 #if defined (CONFIG_RALINK_MT7621)
         mii_mgr_write(31, 0x7008, 0x1f); //enable switch link change intr
 	
@@ -3541,8 +2796,8 @@ int ei_open(struct net_device *dev)
 	*((volatile u32 *)(RALINK_INTCL_BASE + 0x34)) = (1<<17);
 	*((volatile u32 *)(ESW_IMR)) &= ~(ESW_INT_ALL);
 
-#if defined (CONFIG_RALINK_RT6855) || defined (CONFIG_RALINK_RT6855A) || \
-    defined (CONFIG_RALINK_MT7620)
+#if defined (CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_RT6855A) || \
+    defined(CONFIG_RALINK_MT7620)
 	*((volatile u32 *)(ESW_P0_IntMn)) &= ~(MSK_CNT_INT_ALL);
 	*((volatile u32 *)(ESW_P1_IntMn)) &= ~(MSK_CNT_INT_ALL);
 	*((volatile u32 *)(ESW_P2_IntMn)) &= ~(MSK_CNT_INT_ALL);
@@ -3551,44 +2806,21 @@ int ei_open(struct net_device *dev)
 	*((volatile u32 *)(ESW_P5_IntMn)) &= ~(MSK_CNT_INT_ALL);
 	*((volatile u32 *)(ESW_P6_IntMn)) &= ~(MSK_CNT_INT_ALL);
 #endif
-#if defined(CONFIG_RALINK_MT7620)
+#if    defined(CONFIG_RALINK_MT7620)
 	*((volatile u32 *)(ESW_P7_IntMn)) &= ~(MSK_CNT_INT_ALL);
 #endif
 
 #endif	
 #endif // CONFIG_RT_3052_ESW //
 
-#if defined(CONFIG_ARCH_MT7623)
-#if defined (CONFIG_GE1_TRGMII_FORCE_2600)
-	/*MT7623A ESW INT Registration*/
-	mt_eint_registration(168, EINTF_TRIGGER_RISING, esw_interrupt, 1);
-#else
-	/*MT7623N ESW INT Registration*/
-	mt_eint_registration(17, EINTF_TRIGGER_RISING, esw_interrupt, 1);
-#endif
-	INIT_WORK(&ei_local->kill_sig_wq, kill_sig_workq);
-	mii_mgr_write(31, 0x7008, 0x1f); //enable switch link change intr
-#endif	
-
-/*TODO*/
-#if !defined (CONFIG_MT7623_FPGA)
-        spin_lock_irqsave(&(ei_local->page_lock), flags);
-#endif
-
+	spin_lock_irqsave(&(ei_local->page_lock), flags);
 
 #ifdef DELAY_INT
         sysRegWrite(RAETH_DLY_INT_CFG, DELAY_INT_INIT);
     	sysRegWrite(RAETH_FE_INT_ENABLE, RAETH_FE_INT_DLY_INIT);
-    #if defined (CONFIG_RAETH_HW_LRO)
-        sysRegWrite(RAETH_FE_INT_ENABLE, RAETH_FE_INT_DLY_INIT | ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1);
-    #endif  /* CONFIG_RAETH_HW_LRO */
 #else
     	sysRegWrite(RAETH_FE_INT_ENABLE, RAETH_FE_INT_ALL);
-    #if defined (CONFIG_RAETH_HW_LRO)
-        sysRegWrite(RAETH_FE_INT_ENABLE, RAETH_FE_INT_ALL | ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1);
-    #endif  /* CONFIG_RAETH_HW_LRO */
 #endif
-
 #ifdef CONFIG_RAETH_QDMA
 #ifdef DELAY_INT
         sysRegWrite(QDMA_DELAY_INT, DELAY_INT_INIT);
@@ -3599,41 +2831,8 @@ int ei_open(struct net_device *dev)
 #endif
 #endif
 
-#if defined (CONFIG_RAETH_TX_RX_INT_SEPARATION)
-#ifdef DELAY_INT
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x250,TX_DLY_INT);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x254,RX_DLY_INT);        
-    #if defined (CONFIG_RAETH_HW_LRO)
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x250,TX_DLY_INT);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x254,RX_DLY_INT| ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1);        
-    #endif  /* CONFIG_RAETH_HW_LRO */
-#else
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x250,TX_DONE_INT3 | TX_DONE_INT2 |TX_DONE_INT1 | TX_DONE_INT0);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x254,RX_DONE_INT0);        
-    #if defined (CONFIG_RAETH_HW_LRO)
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x250,TX_DONE_INT3 | TX_DONE_INT2 |TX_DONE_INT1 | TX_DONE_INT0);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE+RAPDMA_OFFSET+0x254,RX_DONE_INT0| ALT_RPLC_INT3 | ALT_RPLC_INT2 | ALT_RPLC_INT1);
-    #endif  /* CONFIG_RAETH_HW_LRO */
-#endif
-
-#ifdef CONFIG_RAETH_QDMA
-#ifdef DELAY_INT
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED+0x220,RLS_DLY_INT);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED+0x224,RX_DLY_INT);
-#else
-        sysRegWrite(QFE_INT_ENABLE, QFE_INT_ALL);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED+0x220, RLS_DONE_INT);
-        sysRegWrite(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED+0x224, RX_DONE_INT0 | RX_DONE_INT1);
-
-#endif
-#endif
-	sysRegWrite(RALINK_FRAME_ENGINE_BASE + 0x20, 0x21021000);
-#endif
-
-
-
  	INIT_WORK(&ei_local->reset_task, ei_reset_task);
-	
+
 #ifdef WORKQUEUE_BH
 #ifndef CONFIG_RAETH_NAPI
  	INIT_WORK(&ei_local->rx_wq, ei_receive_workq);
@@ -3660,11 +2859,8 @@ int ei_open(struct net_device *dev)
         netif_poll_enable(dev);
 #endif
 #endif
-//*TODO*/	
-#if !defined (CONFIG_MT7623_FPGA)
-	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
-#endif	
 
+	spin_unlock_irqrestore(&(ei_local->page_lock), flags);
 #ifdef CONFIG_PSEUDO_SUPPORT
 	if(ei_local->PseudoDev == NULL) {
 	    RAETH_Init_PSEUDO(ei_local, dev);
@@ -3683,20 +2879,7 @@ int ei_open(struct net_device *dev)
 	lro_para.lan_ip1 = lan_ip = htonl(lan_ip);
 #endif // CONFIG_RAETH_LRO //
 
-#if defined (CONFIG_RAETH_HW_LRO)
-    INIT_WORK(&ei_local->hw_lro_wq, ei_hw_lro_workq);
-#endif  /* CONFIG_RAETH_HW_LRO */
-
 	forward_config(dev);
-
-#if defined(CONFIG_ARCH_MT7623)
-	kreset_task = kthread_create(fe_reset_thread, NULL, "FE_reset_kthread");
-	if (IS_ERR(kreset_task)){
-		return PTR_ERR(kreset_task);
-	}
-	wake_up_process(kreset_task);
-#endif
-
 	return 0;
 }
 
@@ -3713,26 +2896,12 @@ int ei_close(struct net_device *dev)
 	int i;
 	END_DEVICE *ei_local = netdev_priv(dev);	// device pointer
 
-#if defined(CONFIG_ARCH_MT7623)
-	kthread_stop(kreset_task);
-#endif
-
 	netif_stop_queue(dev);
         ra2880stop(ei_local);
-#if defined (CONFIG_MIPS)
 	free_irq(dev->irq, dev);
-#else
-	free_irq(ei_local->irq0, dev);
-#if defined (CONFIG_RAETH_TX_RX_INT_SEPARATION)	
-	free_irq(ei_local->irq1, dev);
-	free_irq(ei_local->irq2, dev);
-#endif
-#endif
-
-/*TODO: MT7623 MCM INT */
-#if defined (CONFIG_RT_3052_ESW) && !defined(CONFIG_ARCH_MT7623)
+#if defined (CONFIG_RT_3052_ESW)
 	free_irq(SURFBOARDINT_ESW, dev);
-#endif	
+#endif
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
 	cancel_work_sync(&ei_local->reset_task);
 #endif
@@ -3740,7 +2909,6 @@ int ei_close(struct net_device *dev)
 #ifdef CONFIG_PSEUDO_SUPPORT
 	VirtualIF_close(ei_local->PseudoDev);
 #endif
-
 
 #ifdef WORKQUEUE_BH
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
@@ -3756,50 +2924,13 @@ int ei_close(struct net_device *dev)
 	tasklet_kill(&ei_local->rx_tasklet);
 #endif // WORKQUEUE_BH //
 
-#ifdef CONFIG_RAETH_NAPI
-	atomic_inc(&ei_local->irq_sem);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
-        napi_disable(&ei_local->napi);
-#else
-        netif_poll_disable(dev);
-#endif
-#endif
-
-
-#if defined (CONFIG_RAETH_HW_LRO)
-    cancel_work_sync(&ei_local->hw_lro_wq);
-#endif  /* CONFIG_RAETH_HW_LRO */   
-
         for ( i = 0; i < NUM_RX_DESC; i++)
         {
                 if (ei_local->netrx0_skbuf[i] != NULL) {
                         dev_kfree_skb(ei_local->netrx0_skbuf[i]);
 			ei_local->netrx0_skbuf[i] = NULL;
 		}
-#if defined (CONFIG_RAETH_HW_LRO)
-                if (ei_local->netrx3_skbuf[i] != NULL) {
-                        dev_kfree_skb(ei_local->netrx3_skbuf[i]);
-			ei_local->netrx3_skbuf[i] = NULL;
-		}
-                if (ei_local->netrx2_skbuf[i] != NULL) {
-                        dev_kfree_skb(ei_local->netrx2_skbuf[i]);
-			ei_local->netrx2_skbuf[i] = NULL;
-		}
-                if (ei_local->netrx1_skbuf[i] != NULL) {
-                        dev_kfree_skb(ei_local->netrx1_skbuf[i]);
-			ei_local->netrx1_skbuf[i] = NULL;
-		}
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
-#if defined(CONFIG_ARCH_MT7623)
-                if (ei_local->netrx3_skbuf[i] != NULL) {
-                        dev_kfree_skb(ei_local->netrx3_skbuf[i]);
-			ei_local->netrx3_skbuf[i] = NULL;
-		}
-                if (ei_local->netrx2_skbuf[i] != NULL) {
-                        dev_kfree_skb(ei_local->netrx2_skbuf[i]);
-			ei_local->netrx2_skbuf[i] = NULL;
-		}
-#endif  /* CONFIG_ARCH_MT7623 */
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
                 if (ei_local->netrx1_skbuf[i] != NULL) {
                         dev_kfree_skb(ei_local->netrx1_skbuf[i]);
 			ei_local->netrx1_skbuf[i] = NULL;
@@ -3813,8 +2944,7 @@ int ei_close(struct net_device *dev)
 		{
 			dev_kfree_skb_any(ei_local->skb_free[i]);
 		}
-	}
-
+	}	
 	/* TX Ring */
 #ifdef CONFIG_RAETH_QDMA
        if (ei_local->txd_pool != NULL) {
@@ -3837,6 +2967,7 @@ int ei_close(struct net_device *dev)
 	   pci_free_consistent(NULL, NUM_TX_DESC*sizeof(struct PDMA_txdesc), ei_local->tx_ring1, ei_local->phy_tx_ring1);
        }
 
+#if !defined (CONFIG_RALINK_RT2880)
        if (ei_local->tx_ring2 != NULL) {
 	   pci_free_consistent(NULL, NUM_TX_DESC*sizeof(struct PDMA_txdesc), ei_local->tx_ring2, ei_local->phy_tx_ring2);
        }
@@ -3845,36 +2976,38 @@ int ei_close(struct net_device *dev)
 	   pci_free_consistent(NULL, NUM_TX_DESC*sizeof(struct PDMA_txdesc), ei_local->tx_ring3, ei_local->phy_tx_ring3);
        }
 #endif
+#endif
 	/* RX Ring */
 #ifdef CONFIG_32B_DESC
        kfree(ei_local->rx_ring0);
 #else
         pci_free_consistent(NULL, NUM_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring0, ei_local->phy_rx_ring0);
 #endif
-#if defined CONFIG_RAETH_QDMA && !defined(CONFIG_RAETH_QDMATX_QDMARX)	
+#ifdef CONFIG_RAETH_QDMA
 #ifdef CONFIG_32B_DESC
 	kfree(ei_local->qrx_ring);
 #else
 	pci_free_consistent(NULL, NUM_QRX_DESC*sizeof(struct PDMA_rxdesc), ei_local->qrx_ring, ei_local->phy_qrx_ring);
 #endif
 #endif	
-#if defined (CONFIG_RAETH_HW_LRO)
-        pci_free_consistent(NULL, NUM_LRO_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring3, ei_local->phy_rx_ring3);
-        pci_free_consistent(NULL, NUM_LRO_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring2, ei_local->phy_rx_ring2);
-        pci_free_consistent(NULL, NUM_LRO_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring1, ei_local->phy_rx_ring1);
-#elif defined (CONFIG_RAETH_MULTIPLE_RX_RING)
+#if defined (CONFIG_RAETH_MULTIPLE_RX_RING)
 #ifdef CONFIG_32B_DESC
 	kfree(ei_local->rx_ring1);
 #else
-#if defined(CONFIG_ARCH_MT7623)
-        pci_free_consistent(NULL, NUM_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring3, ei_local->phy_rx_ring3);
-        pci_free_consistent(NULL, NUM_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring2, ei_local->phy_rx_ring2);
-#endif  /* CONFIG_ARCH_MT7623 */
         pci_free_consistent(NULL, NUM_RX_DESC*sizeof(struct PDMA_rxdesc), ei_local->rx_ring1, ei_local->phy_rx_ring1);
 #endif
 #endif
 
 	printk("Free TX/RX Ring Memory!\n");
+
+#ifdef CONFIG_RAETH_NAPI
+	atomic_inc(&ei_local->irq_sem);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
+        napi_disable(&ei_local->napi);
+#else
+        netif_poll_disable(dev);
+#endif
+#endif
 
 	fe_reset();
 
@@ -3905,77 +3038,281 @@ void rt6855A_eth_gpio_reset(void)
 }
 #endif
 
-
-#if defined  (CONFIG_ARCH_MT7623) || defined (CONFIG_RALINK_MT7621)
-void mt7530_phy_setting(void)
+#if defined(CONFIG_RALINK_RT6855A)
+void rt6855A_gsw_init(void)
 {
-	u32 i;
-	u32 regValue;
-	for(i=0;i<5;i++)
-	{
-#if 0
-		/* Enable EEE*/
-		mii_mgr_write(i, 13, 0x07);
-		mii_mgr_write(i, 14, 0x3c);
-		mii_mgr_write(i, 13, 0x4007);
-		mii_mgr_write(i, 14, 0x6);
-		/* Disable HW auto downshift*/
-		mii_mgr_write(i, 31, 0x1);
-		mii_mgr_read(i, 0x14 ,&regValue);
-		regValue &= ~(1<<4);
-		mii_mgr_write(i, 0x14, regValue);
-		/* Forced Slave mode*/
-		mii_mgr_write(i, 31, 0x0);
-		mii_mgr_write(i, 9, 0x1600);
-#else
-		/* Disable EEE*/
-		mii_mgr_write(i, 13, 0x07);
-		mii_mgr_write(i, 14, 0x3c);
-		mii_mgr_write(i, 13, 0x4007);
-		mii_mgr_write(i, 14, 0x0);
-		/* Enable HW auto downshift*/
-		mii_mgr_write(i, 31, 0x1);
-		mii_mgr_read(i, 0x14 ,&regValue);
-		regValue |= (1<<4);
-		mii_mgr_write(i, 0x14, regValue);
+	u32 phy_val=0;
+	u32 rev=0;
 
+#if defined (CONFIG_RT6855A_FPGA)
+    /*keep dump switch mode */
+    rt6855A_eth_gpio_reset();
+
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3000) = 0x5e353;//(P0,Force mode,Link Up,100Mbps,Full-Duplex,FC ON)
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3100) = 0x5e353;//(P1,Force mode,Link Up,100Mbps,Full-Duplex,FC ON)
+    //*(unsigned long *)(RALINK_ETH_SW_BASE+0x3000) = 0x5e333;//(P0,Force mode,Link Up,10Mbps,Full-Duplex,FC ON)
+    //*(unsigned long *)(RALINK_ETH_SW_BASE+0x3100) = 0x5e333;//(P1,Force mode,Link Up,10Mbps,Full-Duplex,FC ON)
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3200) = 0x8000;//link down
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3300) = 0x8000;//link down
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3400) = 0x8000;//link down
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x8000;//link down
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3600) = 0x5e33b;//CPU Port6 Force Link 1G, FC ON
+
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x0010) = 0xffffffe0;//Set Port6 CPU Port
+
+    /* In order to use 10M/Full on FPGA board. We configure phy capable to
+     * 10M Full/Half duplex, so we can use auto-negotiation on PC side */
+    for(i=6;i<8;i++){
+	mii_mgr_write(i, 4, 0x07e1);   //Capable of 10M&100M Full/Half Duplex, flow control on/off
+	//mii_mgr_write(i, 4, 0x0461);   //Capable of 10M Full/Half Duplex, flow control on/off
+	mii_mgr_write(i, 0, 0xB100);   //reset all digital logic, except phy_reg
+	mii_mgr_read(i, 9, &phy_val);
+	phy_val &= ~(3<<8); //turn off 1000Base-T Advertisement  (9.9=1000Full, 9.8=1000Half)
+	mii_mgr_write(i, 9, phy_val);
+    }
+#elif defined (CONFIG_RT6855A_ASIC)
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3600) = 0x5e33b;//CPU Port6 Force Link 1G, FC ON
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x0010) = 0xffffffe0;//Set Port6 CPU Port
+
+    *(unsigned long *)(RALINK_FRAME_ENGINE_BASE+0x1ec) = 0x0fffffff;//Set PSE should pause 4 tx ring as default
+    *(unsigned long *)(RALINK_FRAME_ENGINE_BASE+0x1f0) = 0x0fffffff;//switch IOT more stable
+    
+    *(unsigned long *)(CKGCR) &= ~(0x3 << 4); //keep rx/tx port clock ticking, disable internal clock-gating to avoid switch stuck 
+  
+    /*
+     *Reg 31: Page Control
+     * Bit 15     => PortPageSel, 1=local, 0=global
+     * Bit 14:12  => PageSel, local:0~3, global:0~4
+     *
+     *Reg16~30:Local/Global registers
+     *
+    */
+    /*correct  PHY  setting J8.0*/
+    mii_mgr_read(0, 31, &rev);
+    rev &= (0x0f);
+
+    mii_mgr_write(1, 31, 0x4000); //global, page 4
+  
+    mii_mgr_write(1, 16, 0xd4cc);
+    mii_mgr_write(1, 17, 0x7444);
+    mii_mgr_write(1, 19, 0x0112);
+    mii_mgr_write(1, 21, 0x7160);
+    mii_mgr_write(1, 22, 0x10cf);
+    mii_mgr_write(1, 26, 0x0777);
+    
+    if(rev == 0){
+	    mii_mgr_write(1, 25, 0x0102);
+	    mii_mgr_write(1, 29, 0x8641);
+    }
+    else{
+            mii_mgr_write(1, 25, 0x0212);
+	    mii_mgr_write(1, 29, 0x4640);
+    }
+
+    mii_mgr_write(1, 31, 0x2000); //global, page 2
+    mii_mgr_write(1, 21, 0x0655);
+    mii_mgr_write(1, 22, 0x0fd3);
+    mii_mgr_write(1, 23, 0x003d);
+    mii_mgr_write(1, 24, 0x096e);
+    mii_mgr_write(1, 25, 0x0fed);
+    mii_mgr_write(1, 26, 0x0fc4);
+    
+    mii_mgr_write(1, 31, 0x1000); //global, page 1
+    mii_mgr_write(1, 17, 0xe7f8);
+    
+    
+    mii_mgr_write(1, 31, 0xa000); //local, page 2
+
+    mii_mgr_write(0, 16, 0x0e0e);
+    mii_mgr_write(1, 16, 0x0c0c);
+    mii_mgr_write(2, 16, 0x0f0f);
+    mii_mgr_write(3, 16, 0x1010);
+    mii_mgr_write(4, 16, 0x0909);
+
+    mii_mgr_write(0, 17, 0x0000);
+    mii_mgr_write(1, 17, 0x0000);
+    mii_mgr_write(2, 17, 0x0000);
+    mii_mgr_write(3, 17, 0x0000);
+    mii_mgr_write(4, 17, 0x0000);
 #endif
-		/* Increase SlvDPSready time */
-		mii_mgr_write(i, 31, 0x52b5);
-		mii_mgr_write(i, 16, 0xafae);
-		mii_mgr_write(i, 18, 0x2f);
-		mii_mgr_write(i, 16, 0x8fae);
-		/* Incease post_update_timer */
-		mii_mgr_write(i, 31, 0x3);
-		mii_mgr_write(i, 17, 0x4b);
-		/* Adjust 100_mse_threshold */
-		mii_mgr_write(i, 13, 0x1e);
-		mii_mgr_write(i, 14, 0x123);
-		mii_mgr_write(i, 13, 0x401e);
-		mii_mgr_write(i, 14, 0xffff);
-		/* Disable mcc */
-		mii_mgr_write(i, 13, 0x1e);
-		mii_mgr_write(i, 14, 0xa6);
-		mii_mgr_write(i, 13, 0x401e);
-		mii_mgr_write(i, 14, 0x300);
-#if 0
-		/*Increase 10M mode RX gain for long cable*/
-		mii_mgr_write(i, 31, 0x52b5);
-		mii_mgr_write(i, 16, 0xaf92);
-		mii_mgr_write(i, 17, 0x8689);
-		mii_mgr_write(i, 16, 0x8f92);
-#endif
+
+#if defined (CONFIG_RT6855A_ASIC)
+
+#if defined (CONFIG_P5_RGMII_TO_MAC_MODE)
+        *(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x5e33b;//(P5, Force mode, Link Up, 1000Mbps, Full-Duplex, FC ON)
+	*(unsigned long *)(RALINK_ETH_SW_BASE+0x7014) = 0x1f0c000c;//disable port0-port4 internal phy, set phy base address to 12 
+	*(unsigned long *)(RALINK_ETH_SW_BASE+0x250c) = 0x000fff10;//disable port5 mac learning
+	*(unsigned long *)(RALINK_ETH_SW_BASE+0x260c) = 0x000fff10;//disable port6 mac learning
+
+#elif defined (CONFIG_P5_MII_TO_MAC_MODE)
+    	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x5e337;//(P5, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
+#elif defined (CONFIG_P5_MAC_TO_PHY_MODE)
+	//rt6855/6 need to modify TX/RX phase
+	*(unsigned long *)(RALINK_ETH_SW_BASE+0x7014) = 0xc;//TX/RX CLOCK Phase select
+	
+	enable_auto_negotiate(1);
+
+ 	if (isICPlusGigaPHY(1)) {
+		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 4, &phy_val);
+		phy_val |= 1<<10; //enable pause ability
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 4, phy_val);
+
+		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, &phy_val);
+		phy_val |= 1<<9; //restart AN
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, phy_val);
 	}
+
+ 	if (isMarvellGigaPHY(1)) {
+		printk("Reset MARVELL phy1\n");
+		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 20, &phy_val);
+		phy_val |= 1<<7; //Add delay to RX_CLK for RXD Outputs
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 20, phy_val);
+
+		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, &phy_val);
+		phy_val |= 1<<15; //PHY Software Reset
+	 	mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, phy_val);
+        }
+	if (isVtssGigaPHY(1)) {
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 31, 0x0001); //extended page
+		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 28, &phy_val);
+		printk("Vitesse phy skew: %x --> ", phy_val);
+		phy_val |= (0x3<<12); // RGMII RX skew compensation= 2.0 ns
+		phy_val &= ~(0x3<<14);// RGMII TX skew compensation= 0 ns
+		printk("%x\n", phy_val);
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 28, phy_val);
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 31, 0x0000); //main registers
+        }
+#elif defined (CONFIG_P5_RMII_TO_MAC_MODE)
+    	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x5e337;//(P5, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
+#else // Port 5 Disabled //
+    *(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x8000;//link down
+#endif
+#endif
 }
 #endif
 
+#if defined (CONFIG_RALINK_MT7621)
+
+void setup_external_gsw(void)
+{
+	u32	regValue;
+
+	/* reduce RGMII2 PAD driving strength */
+	*(volatile u_long *)(PAD_RGMII2_MDIO_CFG) &= ~(0x3 << 4);
+	//enable MDIO 
+	regValue = le32_to_cpu(*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60));
+	regValue &= ~(0x3 << 12);
+	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) = regValue;
+
+	//RGMII1=Normal mode
+	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) &= ~(0x1 << 14);
+	//GMAC1= RGMII mode
+	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 12);
+	
+	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x00008000);//(GE1, Link down)
+
+	//RGMII2=Normal mode
+	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) &= ~(0x1 << 15);
+	//GMAC2= RGMII mode
+	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 14);
+
+	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x2005e33b);//(GE2, Force 1000M/FD, FC ON)
+
+}
 
 
-#if defined (CONFIG_MT7623_FPGA)
-void setup_fpga_gsw(void)
+
+
+
+
+
+void IsSwitchVlanTableBusy(void)
+{
+	int j = 0;
+	unsigned int value = 0;
+
+	for (j = 0; j < 20; j++) {
+	    mii_mgr_read(31, 0x90, &value);
+	    if ((value & 0x80000000) == 0 ){ //table busy
+		break;
+	    }
+	    udelay(70000);
+	}
+	if (j == 20)
+	    printk("set vlan timeout value=0x%x.\n", value);
+}
+
+void LANWANPartition(void)
+{
+/*Set  MT7530 */
+#ifdef CONFIG_WAN_AT_P0
+	printk("set LAN/WAN WLLLL\n");
+	//WLLLL, wan at P0
+	//LAN/WAN ports as security mode
+	mii_mgr_write(31, 0x2004, 0xff0003);//port0
+	mii_mgr_write(31, 0x2104, 0xff0003);//port1
+	mii_mgr_write(31, 0x2204, 0xff0003);//port2
+	mii_mgr_write(31, 0x2304, 0xff0003);//port3
+	mii_mgr_write(31, 0x2404, 0xff0003);//port4
+
+	//set PVID
+	mii_mgr_write(31, 0x2014, 0x10002);//port0
+	mii_mgr_write(31, 0x2114, 0x10001);//port1
+	mii_mgr_write(31, 0x2214, 0x10001);//port2
+	mii_mgr_write(31, 0x2314, 0x10001);//port3
+	mii_mgr_write(31, 0x2414, 0x10001);//port4
+	/*port6 */
+	//VLAN member
+	IsSwitchVlanTableBusy();
+	mii_mgr_write(31, 0x94, 0x407e0001);//VAWD1
+	mii_mgr_write(31, 0x90, 0x80001001);//VTCR, VID=1
+	IsSwitchVlanTableBusy();
+
+	mii_mgr_write(31, 0x94, 0x40610001);//VAWD1
+	mii_mgr_write(31, 0x90, 0x80001002);//VTCR, VID=2
+	IsSwitchVlanTableBusy();
+#endif
+#ifdef CONFIG_WAN_AT_P4
+	printk("set LAN/WAN LLLLW\n");
+	//LLLLW, wan at P4
+	//LAN/WAN ports as security mode
+	mii_mgr_write(31, 0x2004, 0xff0003);//port0
+	mii_mgr_write(31, 0x2104, 0xff0003);//port1
+	mii_mgr_write(31, 0x2204, 0xff0003);//port2
+	mii_mgr_write(31, 0x2304, 0xff0003);//port3
+	mii_mgr_write(31, 0x2404, 0xff0003);//port4
+
+	//set PVID
+	mii_mgr_write(31, 0x2014, 0x10001);//port0
+	mii_mgr_write(31, 0x2114, 0x10001);//port1
+	mii_mgr_write(31, 0x2214, 0x10001);//port2
+	mii_mgr_write(31, 0x2314, 0x10001);//port3
+	mii_mgr_write(31, 0x2414, 0x10002);//port4
+
+	//VLAN member
+	IsSwitchVlanTableBusy();
+	mii_mgr_write(31, 0x94, 0x404f0001);//VAWD1
+	mii_mgr_write(31, 0x90, 0x80001001);//VTCR, VID=1
+	IsSwitchVlanTableBusy();
+	mii_mgr_write(31, 0x94, 0x40500001);//VAWD1
+	mii_mgr_write(31, 0x90, 0x80001002);//VTCR, VID=2
+	IsSwitchVlanTableBusy();
+#endif
+}
+
+
+
+void setup_internal_gsw(void)
 {
 	u32	i;
 	u32	regValue;
+
+#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200)
+	/*Hardware reset Switch*/
+	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x34) |= (0x1 << 2);
+        udelay(1000);
+	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x34) &= ~(0x1 << 2);
+        udelay(10000);
 
 	/* reduce RGMII2 PAD driving strength */
 	*(volatile u_long *)(PAD_RGMII2_MDIO_CFG) &= ~(0x3 << 4);
@@ -3999,14 +3336,41 @@ void setup_fpga_gsw(void)
 	       mii_mgr_write(i, 0x0, regValue);	
 	}
         mii_mgr_write(31, 0x7000, 0x3); //reset switch
-        udelay(10);
-	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2105e337);//(GE1, Force 100M/FD, FC ON)
+        udelay(100);
+			                       
+
+#if defined (CONFIG_GE1_TRGMII_FORCE_1200) && defined (CONFIG_MT7621_ASIC)
+	trgmii_set_7530();   //reset FE, config MDIO again
+
+	//enable MDIO to control MT7530
+	regValue = le32_to_cpu(*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60));
+	regValue &= ~(0x3 << 12);
+	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) = regValue;
+
+	// switch to APLL if TRGMII and DDR2
+	if ((sysRegRead(0xBE000010)>>4)&0x1)
+	{
+		apll_xtal_enable();
+	}
+#endif
+
+#if defined (CONFIG_MT7621_ASIC)
+	if((sysRegRead(0xbe00000c)&0xFFFF)==0x0101) {
+		sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2005e30b);//(GE1, Force 1000M/FD, FC ON)
+		mii_mgr_write(31, 0x3600, 0x5e30b);
+	} else {
+		sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2005e33b);//(GE1, Force 1000M/FD, FC ON)
+		mii_mgr_write(31, 0x3600, 0x5e33b);
+	}
+#elif defined (CONFIG_MT7621_FPGA)
+	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2005e337);//(GE1, Force 100M/FD, FC ON)
 	mii_mgr_write(31, 0x3600, 0x5e337);
+#endif
 
 	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x00008000);//(GE2, Link down)
-	mii_mgr_write(31, 0x3500, 0x8000);
+#endif
 
-#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200) || defined (CONFIG_GE1_TRGMII_FORCE_2000) || defined (CONFIG_GE1_TRGMII_FORCE_2600)
+#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200)
 	//regValue = 0x117ccf; //Enable Port 6, P5 as GMAC5, P5 disable*/
 	mii_mgr_read(31, 0x7804 ,&regValue);
 	regValue &= ~(1<<8); //Enable Port 6
@@ -4019,26 +3383,76 @@ void setup_fpga_gsw(void)
 
 	//GMAC2= RGMII mode
 	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 14);
-
+#if !defined (CONFIG_RAETH_8023AZ_EEE)	
 	mii_mgr_write(31, 0x3500, 0x56300); //MT7530 P5 AN, we can ignore this setting??????
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x21056300);//(GE2, auto-polling)
+	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x20056300);//(GE2, auto-polling)
 
 	enable_auto_negotiate(0);//set polling address
+#endif
+#if defined (CONFIG_RAETH_8023AZ_EEE)	
+	mii_mgr_write(31, 0x3500, 0x5e33b); //MT7530 P5 Force 1000, we can ignore this setting??????
+	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x2005e33b);//(GE2, Force 1000)
+#endif
+
+
+
 	/* set MT7530 Port 5 to PHY 0/4 mode */
 #if defined (CONFIG_GE_RGMII_INTERNAL_P0_AN)
 	regValue &= ~((1<<13)|(1<<6));
 	regValue |= ((1<<7)|(1<<16)|(1<<20));
 #elif defined (CONFIG_GE_RGMII_INTERNAL_P4_AN)
-	regValue &= ~((1<<13)|(1<<6)|((1<<20)));
+	regValue &= ~((1<<13)|(1<<6)|(1<<20));
 	regValue |= ((1<<7)|(1<<16));
 #endif
-
+	
+#if defined (CONFIG_RAETH_8023AZ_EEE)	
+	regValue |= (1<<13); //Port 5 as GMAC, no Internal PHY
+#endif
 	//sysRegWrite(GDMA2_FWD_CFG, 0x20710000);
 #endif
 	regValue |= (1<<16);//change HW-TRAP
 	printk("change HW-TRAP to 0x%x\n",regValue);
 	mii_mgr_write(31, 0x7804 ,regValue);
 #endif
+	regValue = *(volatile u_long *)(RALINK_SYSCTL_BASE + 0x10);
+	regValue = (regValue >> 6) & 0x7;
+	if(regValue >= 6) { //25Mhz Xtal
+		/* do nothing */
+	} else if(regValue >=3) { //40Mhz
+
+	    mii_mgr_write(0, 13, 0x1f);  // disable MT7530 core clock
+	    mii_mgr_write(0, 14, 0x410);
+	    mii_mgr_write(0, 13, 0x401f);
+	    mii_mgr_write(0, 14, 0x0);
+
+	    mii_mgr_write(0, 13, 0x1f);  // disable MT7530 PLL
+	    mii_mgr_write(0, 14, 0x40d);
+	    mii_mgr_write(0, 13, 0x401f);
+	    mii_mgr_write(0, 14, 0x2020);
+
+	    mii_mgr_write(0, 13, 0x1f);  // for MT7530 core clock = 500Mhz
+	    mii_mgr_write(0, 14, 0x40e);  
+	    mii_mgr_write(0, 13, 0x401f);  
+	    mii_mgr_write(0, 14, 0x119);   
+
+	    mii_mgr_write(0, 13, 0x1f);  // enable MT7530 PLL
+	    mii_mgr_write(0, 14, 0x40d);
+	    mii_mgr_write(0, 13, 0x401f);
+	    mii_mgr_write(0, 14, 0x2820);
+
+	    udelay(20); //suggest by CD
+
+	    mii_mgr_write(0, 13, 0x1f);  // enable MT7530 core clock
+	    mii_mgr_write(0, 14, 0x410);
+	    mii_mgr_write(0, 13, 0x401f);
+	}else { //20Mhz Xtal
+
+		/* TODO */
+
+	}
+#if defined (CONFIG_GE1_TRGMII_FORCE_1200) && defined (CONFIG_MT7621_ASIC)
+	mii_mgr_write(0, 14, 0x3); /*TRGMII*/
+#else
 	mii_mgr_write(0, 14, 0x1);  /*RGMII*/
 /* set MT7530 central align */
         mii_mgr_read(31, 0x7830, &regValue);
@@ -4053,10 +3467,12 @@ void setup_fpga_gsw(void)
         regValue = 0x855;
         mii_mgr_write(31, 0x7a78, regValue);
 
-/*to check!!*/
+#endif
+#if !defined (CONFIG_RAETH_8023AZ_EEE)	
 	mii_mgr_write(31, 0x7b00, 0x102);  //delay setting for 10/1000M
 	mii_mgr_write(31, 0x7b04, 0x14);  //delay setting for 10/1000M
-
+#endif
+#if 0 
 	for(i=0;i<=4;i++) {	
 		mii_mgr_read(i, 4, &regValue);
                 regValue |= (3<<7); //turn on 100Base-T Advertisement
@@ -4064,8 +3480,8 @@ void setup_fpga_gsw(void)
 		mii_mgr_write(i, 4, regValue);
 	
 		mii_mgr_read(i, 9, &regValue);
-                //regValue |= (3<<8); //turn on 1000Base-T Advertisement
-		regValue &= ~(3<<8); //turn off 1000Base-T Advertisement
+                regValue |= (3<<8); //turn on 1000Base-T Advertisement
+		//regValue &= ~(3<<8); //turn off 1000Base-T Advertisement
                 mii_mgr_write(i, 9, regValue);
 
 		//restart AN
@@ -4073,6 +3489,7 @@ void setup_fpga_gsw(void)
 		regValue |= (1 << 9);
 		mii_mgr_write(i, 0, regValue);
 	}
+#endif
 
 	/*Tx Driving*/
 	mii_mgr_write(31, 0x7a54, 0x44);  //lower driving
@@ -4082,6 +3499,30 @@ void setup_fpga_gsw(void)
 	mii_mgr_write(31, 0x7a74, 0x44);  //lower driving
 	mii_mgr_write(31, 0x7a7c, 0x44);  //lower driving
 
+
+	LANWANPartition();
+
+//#if !defined (CONFIG_RAETH_8023AZ_EEE)	
+#if 1
+	//disable EEE
+	for(i=0;i<=4;i++)
+	{
+	    mii_mgr_write(i, 13, 0x7);
+	    mii_mgr_write(i, 14, 0x3C);
+	    mii_mgr_write(i, 13, 0x4007);
+	    mii_mgr_write(i, 14, 0x0);
+	}
+
+	//Disable EEE 10Base-Te:
+	for(i=0;i<=4;i++)
+	{
+	    mii_mgr_write(i, 13, 0x1f);
+	    mii_mgr_write(i, 14, 0x027b);
+	    mii_mgr_write(i, 13, 0x401f);
+	    mii_mgr_write(i, 14, 0x1177);
+	}
+#endif
+
 	for(i=0;i<=4;i++)
         {
 	//turn on PHY
@@ -4089,10 +3530,116 @@ void setup_fpga_gsw(void)
 	        regValue &= ~(0x1<<11);
 	        mii_mgr_write(i, 0x0, regValue);	
 	}
+	
+	mii_mgr_read(31, 0x7808 ,&regValue);
+        regValue |= (3<<16); //Enable INTR
+	mii_mgr_write(31, 0x7808 ,regValue);
+}
+
+#if defined (CONFIG_GE1_TRGMII_FORCE_1200)
+void apll_xtal_enable(void)
+{
+        unsigned long data = 0;
+        unsigned long regValue = 0;
+
+        /* Firstly, reset all required register to default value */
+        sysRegWrite(RALINK_ANA_CTRL_BASE, 0x00008000);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x0014, 0x01401d61);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x0018, 0x38233d0e);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, 0x80120004);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x0020, 0x1c7dbf48);
+
+        /* toggle RG_XPTL_CHG */
+        sysRegWrite(RALINK_ANA_CTRL_BASE, 0x00008800);
+        sysRegWrite(RALINK_ANA_CTRL_BASE, 0x00008c00);
+
+        data = sysRegRead(RALINK_ANA_CTRL_BASE+0x0014);
+        data &= ~(0x0000ffc0);
+
+	regValue = *(volatile u_long *)(RALINK_SYSCTL_BASE + 0x10);
+	regValue = (regValue >> 6) & 0x7;
+	if(regValue < 6) { //20/40Mhz Xtal
+		data |= REGBIT(0x1d, 8);
+	}else {
+		data |= REGBIT(0x17, 8);
+	}
+	
+	if(regValue < 6) { //20/40Mhz Xtal
+		data |= REGBIT(0x1, 6);
+	}
+        
+	sysRegWrite(RALINK_ANA_CTRL_BASE+0x0014, data);
+
+        data = sysRegRead(RALINK_ANA_CTRL_BASE+0x0018);
+        data &= ~(0xf0773f00);
+        data |= REGBIT(0x3, 28);
+        data |= REGBIT(0x2, 20);
+	if(regValue < 6) { //20/40Mhz Xtal
+		data |= REGBIT(0x3, 16);
+	}else {
+		data |= REGBIT(0x2, 16);
+	}
+        data |= REGBIT(0x3, 12);
+
+	if(regValue < 6) { //20/40Mhz Xtal
+		data |= REGBIT(0xd, 8);
+	}else {
+		data |= REGBIT(0x7, 8);
+	}
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x0018, data);
+
+	if(regValue < 6) { //20/40Mhz Xtal
+		sysRegWrite(RALINK_ANA_CTRL_BASE+0x0020, 0x1c7dbf48);
+	}else {
+		sysRegWrite(RALINK_ANA_CTRL_BASE+0x0020, 0x1697cc39);
+	}
+	//*Common setting - Set PLLGP_CTRL_4 *//
+	///* 1. Bit 31 */
+        data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data &= ~(REGBIT(0x1, 31));
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+
+	/* 2. Bit 0 */
+	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data |= REGBIT(0x1, 0);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+
+	/* 3. Bit 3 */
+	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data |= REGBIT(0x1, 3);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+
+	/* 4. Bit 8 */
+	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data |= REGBIT(0x1, 8);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+
+	/* 5. Bit 6 */
+        data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data |= REGBIT(0x1, 6);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+
+	/* 6. Bit 7 */
+        data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data |= REGBIT(0x1, 5);
+        data |= REGBIT(0x1, 7);
+        sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+
+	/* 7. Bit 17 */
+        data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
+        data &= ~REGBIT(0x1, 17);
+	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
+        
+	/* 8. TRGMII TX CLK SEL APLL */
+	data = sysRegRead(0xbe00002c);
+	data &= 0xffffff9f;
+	data |= 0x40;
+	sysRegWrite(0xbe00002c, data);
+
 }
 #endif
 
-
+#endif
 #if defined(CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_MT7620)
 void rt_gsw_init(void)
 {
@@ -4213,6 +3760,8 @@ void rt_gsw_init(void)
     mii_mgr_write(4, 16, 0x1313);
 #endif
 
+//#if !defined (CONFIG_RAETH_8023AZ_EEE)	
+#if 1
     mii_mgr_write(1, 31, 0xb000); //local, page 3
     mii_mgr_write(0, 17, 0x0);
     mii_mgr_write(1, 17, 0x0);
@@ -4221,35 +3770,13 @@ void rt_gsw_init(void)
 #if !defined (CONFIG_RAETH_HAS_PORT4)
     mii_mgr_write(4, 17, 0x0);
 #endif
-
-
-
-#if 0
-    // for ethernet extended mode
-    mii_mgr_write(1, 31, 0x3000);
-    mii_mgr_write(1, 19, 0x122);
-    mii_mgr_write(1, 20, 0x0044);
-    mii_mgr_write(1, 23, 0xa80c);
-    mii_mgr_write(1, 24, 0x129d);
-    mii_mgr_write(1, 31, 9000);
-    mii_mgr_write(0, 18, 0x140c);
-    mii_mgr_write(1, 18, 0x140c);
-    mii_mgr_write(2, 18, 0x140c);
-    mii_mgr_write(3, 18, 0x140c);
-    mii_mgr_write(0, 0, 0x3300);
-    mii_mgr_write(1, 0, 0x3300);
-    mii_mgr_write(2, 0, 0x3300);
-    mii_mgr_write(3, 0, 0x3300);
-#if !defined (CONFIG_RAETH_HAS_PORT4)
-    mii_mgr_write(4, 18, 0x140c);
-    mii_mgr_write(4, 0, 0x3300);
 #endif
-#endif
+
 
 #endif
 
 #if defined(CONFIG_RALINK_MT7620)
-	if ((sysRegRead(RALINK_SYSCTL_BASE+0xC) & 0xf) >= 0x5) {
+	if ((sysRegRead(0xB000000C) & 0xf) >= 0x5) {
 		*(unsigned long *)(RALINK_ETH_SW_BASE+0x701c) = 0x800000c; //enlarge FE2SW_IPG
 	}
 #endif // CONFIG_RAETH_7620 //
@@ -4266,15 +3793,16 @@ void rt_gsw_init(void)
 	/*MT7620 need mac learning for PPE*/
 	//*(unsigned long *)(RALINK_ETH_SW_BASE+0x250c) = 0x000fff10;//disable port5 mac learning
 	//*(unsigned long *)(RALINK_ETH_SW_BASE+0x260c) = 0x000fff10;//disable port6 mac learning
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
+
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
 	//rxclk_skew, txclk_skew = 0
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 12); //GE1_MODE=RGMii Mode
 #if defined (CONFIG_P5_RGMII_TO_MT7530_MODE)
 
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(3 << 7); //set MDIO to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(3 << 7); //set MDIO to Normal mode
 
 	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3400) = 0x56330;//(P4, AN)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 10); //set GE2 to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 10); //set GE2 to Normal mode
 	//rxclk_skew, txclk_skew = 0
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 14); //GE2_MODE=RGMii Mode
 
@@ -4315,13 +3843,13 @@ void rt_gsw_init(void)
 
 #elif defined (CONFIG_P5_MII_TO_MAC_MODE)
     	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x5e337;//(P5, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 12); //GE1_MODE=Mii Mode
 	*(unsigned long *)(SYSCFG1) |= (0x1 << 12);
 
 #elif defined (CONFIG_P5_MAC_TO_PHY_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(3 << 7); //set MDIO to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(3 << 7); //set MDIO to Normal mode
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 12); //GE1_MODE=RGMii Mode
 	
 	enable_auto_negotiate(1);
@@ -4362,30 +3890,30 @@ void rt_gsw_init(void)
 
 #elif defined (CONFIG_P5_RMII_TO_MAC_MODE)
     	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x5e337;//(P5, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 12); //GE1_MODE=RvMii Mode
 	*(unsigned long *)(SYSCFG1) |= (0x2 << 12);
 
 #else // Port 5 Disabled //
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x3500) = 0x8000;//link down
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) |= (1 << 9); //set RGMII to GPIO mode
+	*(unsigned long *)(0xb0000060) |= (1 << 9); //set RGMII to GPIO mode
 #endif
 #endif
 
 #if defined (CONFIG_P4_RGMII_TO_MAC_MODE)
 	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3400) = 0x5e33b;//(P4, Force mode, Link Up, 1000Mbps, Full-Duplex, FC ON)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 10); //set GE2 to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 10); //set GE2 to Normal mode
 	//rxclk_skew, txclk_skew = 0
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 14); //GE2_MODE=RGMii Mode
 
 #elif defined (CONFIG_P4_MII_TO_MAC_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 10); //set GE2 to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 10); //set GE2 to Normal mode
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 14); //GE2_MODE=Mii Mode
 	*(unsigned long *)(SYSCFG1) |= (0x1 << 14);
 
 #elif defined (CONFIG_P4_MAC_TO_PHY_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 10); //set GE2 to Normal mode
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(3 << 7); //set MDIO to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 10); //set GE2 to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(3 << 7); //set MDIO to Normal mode
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 14); //GE2_MODE=RGMii Mode
 
 	enable_auto_negotiate(1);
@@ -4425,13 +3953,13 @@ void rt_gsw_init(void)
 
 #elif defined (CONFIG_P4_RMII_TO_MAC_MODE)
     	*(unsigned long *)(RALINK_ETH_SW_BASE+0x3400) = 0x5e337;//(P5, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 10); //set GE2 to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 10); //set GE2 to Normal mode
 	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 14); //GE1_MODE=RvMii Mode
 	*(unsigned long *)(SYSCFG1) |= (0x2 << 14);
 #elif defined (CONFIG_GE_RGMII_MT7530_P0_AN) || defined (CONFIG_GE_RGMII_MT7530_P4_AN)
 #else // Port 4 Disabled //
         *(unsigned long *)(SYSCFG1) |= (0x3 << 14); //GE2_MODE=RJ45 Mode
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) |= (1 << 10); //set RGMII2 to GPIO mode
+	*(unsigned long *)(0xb0000060) |= (1 << 10); //set RGMII2 to GPIO mode
 #endif
 
 }
@@ -4450,17 +3978,10 @@ void mt7628_ephy_init(void)
 		mii_mgr_write(i, 31, 0x8000); //change L0 page
 		mii_mgr_write(i,  0, 0x3100);
 
-//#if defined (CONFIG_RAETH_8023AZ_EEE)	
-#if 0
+#if defined (CONFIG_RAETH_8023AZ_EEE)	
 		mii_mgr_read(i, 26, &phy_val);// EEE setting
 		phy_val |= (1 << 5);
 		mii_mgr_write(i, 26, phy_val);
-#else
-		//disable EEE
-		mii_mgr_write(i, 13, 0x7);
-		mii_mgr_write(i, 14, 0x3C);
-		mii_mgr_write(i, 13, 0x4007);
-		mii_mgr_write(i, 14, 0x0);
 #endif
 		mii_mgr_write(i, 30, 0xa000);
 		mii_mgr_write(i, 31, 0xa000); // change L2 page
@@ -4469,10 +3990,13 @@ void mt7628_ephy_init(void)
 		mii_mgr_write(i, 24, 0x1610);
 		mii_mgr_write(i, 30, 0x1f15);
 		mii_mgr_write(i, 28, 0x6111);
-
+#if 0
 		mii_mgr_read(i, 4, &phy_val);
 		phy_val |= (1 << 10);
 		mii_mgr_write(i, 4, phy_val);
+		mii_mgr_write(i, 31, 0x2000); // change G2 page
+		mii_mgr_write(i, 26, 0x0000);
+#endif
 	}
 
         //100Base AOI setting
@@ -4489,21 +4013,23 @@ void mt7628_ephy_init(void)
 	mii_mgr_write(0, 28, 0x0233);
 	mii_mgr_write(0, 29, 0x000a);
 	mii_mgr_write(0, 30, 0x0000);
-	/* Fix EPHY idle state abnormal behavior */
-	mii_mgr_write(0, 31, 0x4000); //change G4 page
-	mii_mgr_write(0, 29, 0x000d);
-	mii_mgr_write(0, 30, 0x0500);
-
 }
 
 #endif
 
 
-#if  defined (CONFIG_RALINK_MT7628)
+#if defined (CONFIG_RALINK_RT3052) || defined (CONFIG_RALINK_RT3352) || defined (CONFIG_RALINK_RT5350) || defined (CONFIG_RALINK_MT7628)
 void rt305x_esw_init(void)
 {
 	int i=0;
 	u32 phy_val=0, val=0;
+#if defined (CONFIG_RT3052_ASIC)
+	u32 phy_val2;
+#endif
+
+#if defined (CONFIG_RT5350_ASIC)
+	*(unsigned long *)(RALINK_ETH_SW_BASE+0x0168) = 0x17;
+#endif
 
 	/*
 	 * FC_RLS_TH=200, FC_SET_TH=160
@@ -4528,11 +4054,11 @@ void rt305x_esw_init(void)
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x009C) = 0x6008a241;
 #endif
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x008C) = 0x02404040;
-#if defined (CONFIG_MT7628_ASIC)
+#if defined (CONFIG_RT3052_ASIC) || defined (CONFIG_RT3352_ASIC) || defined (CONFIG_RT5350_ASIC) || defined (CONFIG_MT7628_ASIC)
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) = 0x3f502b28; //Change polling Ext PHY Addr=0x1F
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x0084) = 0x00000000;
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x0110) = 0x7d000000; //1us cycle number=125 (FE's clock=125Mhz)
-#elif defined (CONFIG_MT7628_FPGA)
+#elif defined (CONFIG_RT3052_FPGA) || defined (CONFIG_RT3352_FPGA) || defined (CONFIG_RT5350_FPGA) || defined (CONFIG_MT7628_FPGA)
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) = 0x00f03ff9; //polling Ext PHY Addr=0x0, force port5 as 100F/D (disable auto-polling)
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x0084) = 0xffdf1f00;
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x0110) = 0x0d000000; //1us cycle number=13 (FE's clock=12.5Mhz)
@@ -4549,20 +4075,33 @@ void rt305x_esw_init(void)
 	 * set port 5 force to 1000M/Full when connecting to switch or iNIC
 	 */
 #if defined (CONFIG_P5_RGMII_TO_MAC_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(1<<29); //disable port 5 auto-polling
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) |= 0x3fff; //force 1000M full duplex
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(0xf<<20); //rxclk_skew, txclk_skew = 0
 #elif defined (CONFIG_P5_MII_TO_MAC_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(1<<29); //disable port 5 auto-polling
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(0x3fff); 
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) |= 0x3ffd; //force 100M full duplex
 
+#if defined (CONFIG_RALINK_RT3352)
+        *(unsigned long *)(SYSCFG1) &= ~(0x3 << 12); //GE1_MODE=Mii Mode
+        *(unsigned long *)(SYSCFG1) |= (0x1 << 12);
+#endif
+
 #elif defined (CONFIG_P5_MAC_TO_PHY_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 7); //set MDIO to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 7); //set MDIO to Normal mode
+#if defined (CONFIG_RT3052_ASIC) || defined (CONFIG_RT3352_ASIC)
+	enable_auto_negotiate(1);
+#endif
         if (isMarvellGigaPHY(1)) {
+#if defined (CONFIG_RT3052_FPGA) || defined (CONFIG_RT3352_FPGA)
+		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 9, &phy_val);
+		phy_val &= ~(3<<8); //turn off 1000Base-T Advertisement  (9.9=1000Full, 9.8=1000Half)
+		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 9, phy_val);
+#endif
 		printk("\n Reset MARVELL phy\n");
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 20, &phy_val);
 		phy_val |= 1<<7; //Add delay to RX_CLK for RXD Outputs
@@ -4584,14 +4123,33 @@ void rt305x_esw_init(void)
         }
        
 #elif defined (CONFIG_P5_RMII_TO_MAC_MODE)
-	*(unsigned long *)(RALINK_SYSCTL_BASE+0x60) &= ~(1 << 9); //set RGMII to Normal mode
+	*(unsigned long *)(0xb0000060) &= ~(1 << 9); //set RGMII to Normal mode
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(1<<29); //disable port 5 auto-polling
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(0x3fff); 
         *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) |= 0x3ffd; //force 100M full duplex
         
+#if defined (CONFIG_RALINK_RT3352)
+	*(unsigned long *)(SYSCFG1) &= ~(0x3 << 12); //GE1_MODE=RvMii Mode
+        *(unsigned long *)(SYSCFG1) |= (0x2 << 12);
+#endif
 #else // Port 5 Disabled //
 
-#if defined (CONFIG_RALINK_MT7628)
+#if defined (CONFIG_RALINK_RT3052)
+        *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(1 << 29); //port5 auto polling disable
+        *(unsigned long *)(0xb0000060) |= (1 << 7); //set MDIO to GPIO mode (GPIO22-GPIO23)
+        *(unsigned long *)(0xb0000060) |= (1 << 9); //set RGMII to GPIO mode (GPIO41-GPIO50)
+        *(unsigned long *)(0xb0000674) = 0xFFF; //GPIO41-GPIO50 output mode
+        *(unsigned long *)(0xb000067C) = 0x0; //GPIO41-GPIO50 output low
+#elif defined (CONFIG_RALINK_RT3352)
+        *(unsigned long *)(RALINK_ETH_SW_BASE+0x00C8) &= ~(1 << 29); //port5 auto polling disable
+	*(unsigned long *)(0xb0000060) |= (1 << 7); //set MDIO to GPIO mode (GPIO22-GPIO23)
+        *(unsigned long *)(0xb0000624) = 0xC0000000; //GPIO22-GPIO23 output mode
+        *(unsigned long *)(0xb000062C) = 0xC0000000; //GPIO22-GPIO23 output high
+        
+        *(unsigned long *)(0xb0000060) |= (1 << 9); //set RGMII to GPIO mode (GPIO24-GPIO35)
+	*(unsigned long *)(0xb000064C) = 0xFFF; //GPIO24-GPIO35 output mode
+        *(unsigned long *)(0xb0000654) = 0xFFF; //GPIO24-GPIO35 output high
+#elif defined (CONFIG_RALINK_RT5350) || defined (CONFIG_RALINK_MT7628)
 	/* do nothing */
 #endif
 #endif // CONFIG_P5_RGMII_TO_MAC_MODE //
@@ -4683,6 +4241,85 @@ void rt305x_esw_init(void)
                 mii_mgr_write(i, 26, phy_val);
             }
 	}
+#elif defined (CONFIG_RT3352_ASIC)
+	//PHY IOT
+	// reset EPHY
+	val = sysRegRead(RSTCTRL);
+	val = val | RALINK_EPHY_RST;
+	sysRegWrite(RSTCTRL, val);
+	val = val & ~(RALINK_EPHY_RST);
+	sysRegWrite(RSTCTRL, val);
+
+	//select local register
+        mii_mgr_write(0, 31, 0x8000);
+        for(i=0;i<5;i++){
+            mii_mgr_write(i, 26, 0x1600);   //TX10 waveform coefficient //LSB=0 disable PHY
+            mii_mgr_write(i, 29, 0x7016);   //TX100/TX10 AD/DA current bias
+            mii_mgr_write(i, 30, 0x0038);   //TX100 slew rate control
+        }
+
+        //select global register
+        mii_mgr_write(0, 31, 0x0);
+        mii_mgr_write(0,  1, 0x4a40); //enlarge agcsel threshold 3 and threshold 2
+        mii_mgr_write(0,  2, 0x6254); //enlarge agcsel threshold 5 and threshold 4
+        mii_mgr_write(0,  3, 0xa17f); //enlarge agcsel threshold 6
+        mii_mgr_write(0, 12, 0x7eaa);
+        mii_mgr_write(0, 14, 0x65);   //longer TP_IDL tail length
+        mii_mgr_write(0, 16, 0x0684); //increased squelch pulse count threshold.
+        mii_mgr_write(0, 17, 0x0fe0); //set TX10 signal amplitude threshold to minimum
+        mii_mgr_write(0, 18, 0x40ba); //set squelch amplitude to higher threshold
+        mii_mgr_write(0, 22, 0x253f); //tune TP_IDL tail and head waveform, enable power down slew rate control
+        mii_mgr_write(0, 27, 0x2fda); //set PLL/Receive bias current are calibrated
+        mii_mgr_write(0, 28, 0xc410); //change PLL/Receive bias current to internal(RT3350)
+        mii_mgr_write(0, 29, 0x598b); //change PLL bias current to internal(RT3052_MP3)
+        mii_mgr_write(0, 31, 0x8000); //select local register
+
+        for(i=0;i<5;i++){
+            //LSB=1 enable PHY
+            mii_mgr_read(i, 26, &phy_val);
+            phy_val |= 0x0001;
+            mii_mgr_write(i, 26, phy_val);
+        }
+
+#elif defined (CONFIG_RT5350_ASIC)
+	//PHY IOT
+	// reset EPHY
+	val = sysRegRead(RSTCTRL);
+	val = val | RALINK_EPHY_RST;
+	sysRegWrite(RSTCTRL, val);
+	val = val & ~(RALINK_EPHY_RST);
+	sysRegWrite(RSTCTRL, val);
+
+	//select local register
+        mii_mgr_write(0, 31, 0x8000);
+        for(i=0;i<5;i++){
+            mii_mgr_write(i, 26, 0x1600);   //TX10 waveform coefficient //LSB=0 disable PHY
+            mii_mgr_write(i, 29, 0x7015);   //TX100/TX10 AD/DA current bias
+            mii_mgr_write(i, 30, 0x0038);   //TX100 slew rate control
+        }
+
+        //select global register
+        mii_mgr_write(0, 31, 0x0);
+        mii_mgr_write(0,  1, 0x4a40); //enlarge agcsel threshold 3 and threshold 2
+        mii_mgr_write(0,  2, 0x6254); //enlarge agcsel threshold 5 and threshold 4
+        mii_mgr_write(0,  3, 0xa17f); //enlarge agcsel threshold 6
+        mii_mgr_write(0, 12, 0x7eaa);
+        mii_mgr_write(0, 14, 0x65);   //longer TP_IDL tail length
+        mii_mgr_write(0, 16, 0x0684); //increased squelch pulse count threshold.
+        mii_mgr_write(0, 17, 0x0fe0); //set TX10 signal amplitude threshold to minimum
+        mii_mgr_write(0, 18, 0x40ba); //set squelch amplitude to higher threshold
+        mii_mgr_write(0, 22, 0x253f); //tune TP_IDL tail and head waveform, enable power down slew rate control
+        mii_mgr_write(0, 27, 0x2fda); //set PLL/Receive bias current are calibrated
+        mii_mgr_write(0, 28, 0xc410); //change PLL/Receive bias current to internal(RT3350)
+        mii_mgr_write(0, 29, 0x598b); //change PLL bias current to internal(RT3052_MP3)
+        mii_mgr_write(0, 31, 0x8000); //select local register
+
+        for(i=0;i<5;i++){
+            //LSB=1 enable PHY
+            mii_mgr_read(i, 26, &phy_val);
+            phy_val |= 0x0001;
+            mii_mgr_write(i, 26, phy_val);
+        }
 #elif defined (CONFIG_MT7628_ASIC)
 /*INIT MT7628 PHY HERE*/
 	val = sysRegRead(RT2880_AGPIOCFG_REG);
@@ -4692,7 +4329,7 @@ void rt305x_esw_init(void)
 #else
 	val = val & ~(MT7628_P0_EPHY_AIO_EN | MT7628_P1_EPHY_AIO_EN | MT7628_P2_EPHY_AIO_EN | MT7628_P3_EPHY_AIO_EN | MT7628_P4_EPHY_AIO_EN);
 #endif
-	if ((*((volatile u32 *)(RALINK_SYSCTL_BASE + 0x8))) & 0x10000)
+        if ((*((volatile u32 *)(RALINK_SYSCTL_BASE + 0x8))) & 0x10000)
 		val &= ~0x1f0000;
 	sysRegWrite(RT2880_AGPIOCFG_REG, val);
 
@@ -4709,7 +4346,12 @@ void rt305x_esw_init(void)
 	val |= 0x05540554;
 	sysRegWrite(RALINK_SYSCTL_BASE + 0x64, val); // set P0 EPHY LED mode
 #else
+#if defined (CONFIG_MODEL_RTN11PB1) || defined (CONFIG_MODEL_RTN10PV3)
+        val |= 0x14;  //asus set EPHY_LED0_N_JTDO/EPHY_LED1_N_JTDO  to gpio mode.
+	val &= ~0x1;  //set WLED_AN_MODE to WLED.
+#else
 	val &= 0xf003f003;
+#endif
 	sysRegWrite(RALINK_SYSCTL_BASE + 0x64, val); // set P0~P4 EPHY LED mode
 #endif
 
@@ -4718,1384 +4360,6 @@ void rt305x_esw_init(void)
 
 #endif
 }
-#endif
-
-
-#if defined (CONFIG_RALINK_MT7621)
-#if defined (CONFIG_GE1_TRGMII_FORCE_1200)
-void apll_xtal_enable(void)
-{
-	unsigned long data = 0;
-	unsigned long regValue = 0;
-
-	/* Firstly, reset all required register to default value */
-	sysRegWrite(RALINK_ANA_CTRL_BASE, 0x00008000);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x0014, 0x01401d61);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x0018, 0x38233d0e);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, 0x80120004);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x0020, 0x1c7dbf48);
-
-	/* toggle RG_XPTL_CHG */
-	sysRegWrite(RALINK_ANA_CTRL_BASE, 0x00008800);
-	sysRegWrite(RALINK_ANA_CTRL_BASE, 0x00008c00);
-
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x0014);
-	data &= ~(0x0000ffc0);
-
-	regValue = *(volatile u_long *)(RALINK_SYSCTL_BASE + 0x10);
-	regValue = (regValue >> 6) & 0x7;
-	if(regValue < 6) { //20/40Mhz Xtal
-		data |= REGBIT(0x1d, 8);
-	}else {
-		data |= REGBIT(0x17, 8);
-	}
-
-	if(regValue < 6) { //20/40Mhz Xtal
-		data |= REGBIT(0x1, 6);
-	}
-
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x0014, data);
-
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x0018);
-	data &= ~(0xf0773f00);
-	data |= REGBIT(0x3, 28);
-	data |= REGBIT(0x2, 20);
-	if(regValue < 6) { //20/40Mhz Xtal
-		data |= REGBIT(0x3, 16);
-	}else {
-		data |= REGBIT(0x2, 16);
-	}
-	data |= REGBIT(0x3, 12);
-
-	if(regValue < 6) { //20/40Mhz Xtal
-		data |= REGBIT(0xd, 8);
-	}else {
-		data |= REGBIT(0x7, 8);
-	}
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x0018, data);
-
-	if(regValue < 6) { //20/40Mhz Xtal
-		sysRegWrite(RALINK_ANA_CTRL_BASE+0x0020, 0x1c7dbf48);
-	}else {
-		sysRegWrite(RALINK_ANA_CTRL_BASE+0x0020, 0x1697cc39);
-	}
-	/*Common setting - Set PLLGP_CTRL_4 */
-	/* 1. Bit 31 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data &= ~(REGBIT(0x1, 31));
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-
-	/* 2. Bit 0 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data |= REGBIT(0x1, 0);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-	/* 3. Bit 3 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data |= REGBIT(0x1, 3);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-	/* 4. Bit 8 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data |= REGBIT(0x1, 8);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-	/* 5. Bit 6 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data |= REGBIT(0x1, 6);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-	/* 6. Bit 7 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data |= REGBIT(0x1, 5);
-	data |= REGBIT(0x1, 7);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-	/* 7. Bit 17 */
-	data = sysRegRead(RALINK_ANA_CTRL_BASE+0x001c);
-	data &= ~REGBIT(0x1, 17);
-	sysRegWrite(RALINK_ANA_CTRL_BASE+0x001c, data);
-
-	/* 8. TRGMII TX CLK SEL APLL */
-	data = sysRegRead(RALINK_SYSCTL_BASE+0x2c);
-	data &= 0xffffff9f;
-	data |= 0x40;
-	sysRegWrite(RALINK_SYSCTL_BASE+0x2c, data);
-
-}
-#endif
-
-#elif defined (CONFIG_ARCH_MT7623)
-void mt7623_pinmux_set(void)
-{
-	unsigned long regValue;
-	
-	//printk("[mt7623_pinmux_set]start\n");
-	/* Pin277: ESW_RST (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xad0));
-	regValue &= ~(BITS(6,8));
-	regValue |= BIT(6);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xad0) = regValue;
-
-	/* Pin262: G2_TXEN (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xaa0));
-	regValue &= ~(BITS(6,8));
-	regValue |= BIT(6);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xaa0) = regValue;
-	/* Pin263: G2_TXD3 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xaa0));
-	regValue &= ~(BITS(9,11));
-	regValue |= BIT(9);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xaa0) = regValue;
-	/* Pin264: G2_TXD2 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xaa0));
-	regValue &= ~(BITS(12,14));
-	regValue |= BIT(12);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xaa0) = regValue;
-	/* Pin265: G2_TXD1 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xab0));
-	regValue &= ~(BITS(0,2));
-	regValue |= BIT(0);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xab0) = regValue;
-	/* Pin266: G2_TXD0 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xab0));
-	regValue &= ~(BITS(3,5));
-	regValue |= BIT(3);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xab0) = regValue;
-	/* Pin267: G2_TXC (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xab0));
-	regValue &= ~(BITS(6,8));
-	regValue |= BIT(6);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xab0) = regValue;
-	/* Pin268: G2_RXC (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xab0));
-	regValue &= ~(BITS(9,11));
-	regValue |= BIT(9);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xab0) = regValue;
-	/* Pin269: G2_RXD0 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xab0));
-	regValue &= ~(BITS(12,14));
-	regValue |= BIT(12);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xab0) = regValue;
-	/* Pin270: G2_RXD1 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xac0));
-	regValue &= ~(BITS(0,2));
-	regValue |= BIT(0);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xac0) = regValue;
-	/* Pin271: G2_RXD2 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xac0));
-	regValue &= ~(BITS(3,5));
-	regValue |= BIT(3);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xac0) = regValue;
-	/* Pin272: G2_RXD3 (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xac0));
-	regValue &= ~(BITS(6,8));
-	regValue |= BIT(6);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xac0) = regValue;
-	/* Pin274: G2_RXDV (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xac0));
-	regValue &= ~(BITS(12,14));
-	regValue |= BIT(12);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xac0) = regValue;
-
-	/* Pin275: MDC (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xad0));
-	regValue &= ~(BITS(0,2));
-	regValue |= BIT(0);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xad0) = regValue;
-	/* Pin276: MDIO (1) */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0xad0));
-	regValue &= ~(BITS(3,5));
-	regValue |= BIT(3);
-	*(volatile u_long *)(ETH_GPIO_BASE+0xad0) = regValue;
-
-	/* Pin33: in GPIO mode for MT7530 reset */
-	regValue = le32_to_cpu(*(volatile u_long *)(ETH_GPIO_BASE+0x7c0));
-	regValue &= ~(BITS(9,11));
-	*(volatile u_long *)(ETH_GPIO_BASE+0x7c0) = regValue;
-	//printk("[mt7623_pinmux_set]end\n");
-}
-
-void wait_loop(void) {
-	int i,j;
-	int read_data;
-	j =0;
-	while (j< 10) {
-		for(i = 0; i<32; i = i+1){
-			read_data = *(volatile u_long *)(0xFB110610);
-		}
-		j++;
-	}
-}
-
-void trgmii_calibration_7623(void) {
-
-	unsigned int  tap_a[5] = {0, 0, 0, 0, 0}; // minumum delay for all correct
-	unsigned int  tap_b[5] = {0, 0, 0, 0, 0}; // maximum delay for all correct
-	unsigned int  final_tap[5];
-	unsigned int  rxc_step_size;
-	unsigned int  rxd_step_size;
-	unsigned int  read_data;
-	unsigned int  tmp;
-	unsigned int  rd_wd;
-	int  i;
-	unsigned int err_cnt[5];
-	unsigned int init_toggle_data;
-	unsigned int err_flag[5];
-	unsigned int err_total_flag;
-	unsigned int training_word;
-	unsigned int rd_tap;
-	unsigned int is_mt7623_e1 = 0;
-
-	u32  TRGMII_7623_base;
-	u32  TRGMII_7623_RD_0;
-	u32  TRGMII_RCK_CTRL;
-	TRGMII_7623_base = ETHDMASYS_ETH_SW_BASE+0x0300;
-	TRGMII_7623_RD_0 = TRGMII_7623_base + 0x10;
-	TRGMII_RCK_CTRL = TRGMII_7623_base;
-	rxd_step_size =0x1;
-	rxc_step_size =0x4;
-	init_toggle_data = 0x00000055;
-	training_word    = 0x000000AC;
-
-        tmp = *(volatile u_long *)(DEVINFO_BASE+0x8);
-	if(tmp == 0x0000CA00)
-	{
-		is_mt7623_e1 = 1;
-		printk("===MT7623 E1 only===\n");
-	}	
-
-	//printk("Calibration begin ........");
-	*(volatile u_long *)(TRGMII_7623_base +0x04) &= 0x3fffffff;   // RX clock gating in MT7623
-	*(volatile u_long *)(TRGMII_7623_base +0x00) |= 0x80000000;   // Assert RX  reset in MT7623
-	*(volatile u_long *)(TRGMII_7623_base +0x78) |= 0x00002000;   // Set TX OE edge in  MT7623
-	*(volatile u_long *)(TRGMII_7623_base +0x04) |= 0xC0000000;   // Disable RX clock gating in MT7623
-	*(volatile u_long *)(TRGMII_7623_base )      &= 0x7fffffff;   // Release RX reset in MT7623
-	//printk("Check Point 1 .....\n");
-	for (i = 0 ; i<5 ; i++) {
-		*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) |= 0x80000000;   // Set bslip_en = 1
-	}
-
-	//printk("Enable Training Mode in MT7530\n");
-	mii_mgr_read(0x1F,0x7A40,&read_data);
-	read_data |= 0xc0000000;
-	mii_mgr_write(0x1F,0x7A40,read_data);  //Enable Training Mode in MT7530
-	err_total_flag = 0;
-	//printk("Adjust RXC delay in MT7623\n");
-	read_data =0x0;
-	while (err_total_flag == 0 && read_data != 0x68) {
-		//printk("2nd Enable EDGE CHK in MT7623\n");
-		/* Enable EDGE CHK in MT7623*/
-		for (i = 0 ; i<5 ; i++) {
-			tmp = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			tmp |= 0x40000000;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = tmp & 0x4fffffff;
-		}
-		wait_loop();
-		err_total_flag = 1;
-		for  (i = 0 ; i<5 ; i++) {
-			err_cnt[i] = ((*(volatile u_long *)(TRGMII_7623_RD_0 + i*8)) >> 8)  & 0x0000000f;
-			rd_wd = ((*(volatile u_long *)(TRGMII_7623_RD_0 + i*8)) >> 16)  & 0x000000ff;
-			//printk("ERR_CNT = %d, RD_WD =%x\n",err_cnt[i],rd_wd);
-			if ( err_cnt[i] !=0 ) {
-				err_flag[i] = 1;
-			}
-			else if (rd_wd != 0x55) {
-				err_flag[i] = 1;
-			}	
-			else {
-				err_flag[i] = 0;
-			}
-			err_total_flag = err_flag[i] &  err_total_flag;
-		}
-
-		//printk("2nd Disable EDGE CHK in MT7623\n");
-		/* Disable EDGE CHK in MT7623*/
-		for (i = 0 ; i<5 ; i++) {
-			tmp = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			tmp |= 0x40000000;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = tmp & 0x4fffffff;
-		}
-		wait_loop();
-		//printk("2nd Disable EDGE CHK in MT7623\n");
-		/* Adjust RXC delay */
-		if(is_mt7623_e1)
-			*(volatile u_long *)(TRGMII_7623_base +0x00) |= 0x80000000;   // Assert RX  reset in MT7623
-		*(volatile u_long *)(TRGMII_7623_base +0x04) &= 0x3fffffff;   // RX clock gating in MT7623
-		read_data = *(volatile u_long *)(TRGMII_7623_base);
-		if (err_total_flag == 0) {
-		  tmp = (read_data & 0x0000007f) + rxc_step_size;
-		  //printk(" RXC delay = %d\n", tmp);
-		  read_data >>= 8;
-		  read_data &= 0xffffff80;
-		  read_data |= tmp;
-		  read_data <<=8;
-		  read_data &= 0xffffff80;
-		  read_data |=tmp;
-		  *(volatile u_long *)(TRGMII_7623_base)  =   read_data;
-		} else {
-		  tmp = (read_data & 0x0000007f) + 16;
-		  //printk(" RXC delay = %d\n", tmp);
-		  read_data >>= 8;
-		  read_data &= 0xffffff80;
-		  read_data |= tmp;
-		  read_data <<=8;
-		  read_data &= 0xffffff80;
-		  read_data |=tmp;
-		  *(volatile u_long *)(TRGMII_7623_base)  =   read_data;
-		}	
-		  read_data &=0x000000ff;
-		  if(is_mt7623_e1)
-			  *(volatile u_long *)(TRGMII_7623_base )      &= 0x7fffffff;   // Release RX reset in MT7623
-		  *(volatile u_long *)(TRGMII_7623_base +0x04) |= 0xC0000000;   // Disable RX clock gating in MT7623
-		  for (i = 0 ; i<5 ; i++) {
-		  	*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) =  (*(volatile u_long *)(TRGMII_7623_RD_0 + i*8)) | 0x80000000;  // Set bslip_en = ~bit_slip_en
-		  }
-	}
-	//printk("Finish RXC Adjustment while loop\n");
-	//printk("Read RD_WD MT7623\n");
-	/* Read RD_WD MT7623*/
-	for  (i = 0 ; i<5 ; i++) {
-		rd_tap=0;
-		while (err_flag[i] != 0 && rd_tap != 128) {
-			/* Enable EDGE CHK in MT7623*/
-			tmp = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			tmp |= 0x40000000;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = tmp & 0x4fffffff;
-			wait_loop();
-			read_data = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			err_cnt[i] = (read_data >> 8)  & 0x0000000f;     // Read MT7623 Errcnt
-			rd_wd = (read_data >> 16)  & 0x000000ff;
-			if (err_cnt[i] != 0 || rd_wd !=0x55){
-		           err_flag [i] =  1;
-			}   
-			else {
-			   err_flag[i] =0;
-		        }	
-			/* Disable EDGE CHK in MT7623*/
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) &= 0x4fffffff;
-			tmp |= 0x40000000;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = tmp & 0x4fffffff;
-			wait_loop();
-			//err_cnt[i] = ((read_data) >> 8)  & 0x0000000f;     // Read MT7623 Errcnt
-			if (err_flag[i] !=0) {
-			    rd_tap    = (read_data & 0x0000007f) + rxd_step_size;                     // Add RXD delay in MT7623
-			    read_data = (read_data & 0xffffff80) | rd_tap;
-			    *(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = read_data;
-			    tap_a[i] = rd_tap;
-			} else {
-                            rd_tap    = (read_data & 0x0000007f) + 48;
-			    read_data = (read_data & 0xffffff80) | rd_tap;
-			    *(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = read_data;
-			}	
-			//err_cnt[i] = (*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) >> 8)  & 0x0000000f;     // Read MT7623 Errcnt
-
-		}
-		printk("MT7623 %dth bit  Tap_a = %d\n", i, tap_a[i]);
-#if 0 
-		if (tap_a[i] == 128) {
-		    printk("****** MT7623 ERROR  %dth bit  Tap_a = 128 ******* \n" , i);
-		} else {   
-			printk("####### MT7623 %dth bit  Tap_a = %d\n", i, tap_a[i]);
-		}  
-#endif
-	}
-	//printk("Last While Loop\n");
-	for  (i = 0 ; i<5 ; i++) {
-		//printk(" Bit%d\n", i);
-//		while ((err_cnt[i] == 0) && (rd_tap !=128)) {
-		while ((err_flag[i] == 0) && (rd_tap !=128)) {
-			read_data = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			rd_tap    = (read_data & 0x0000007f) + rxd_step_size;                     // Add RXD delay in MT7623
-			read_data = (read_data & 0xffffff80) | rd_tap;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = read_data;
-
-			/* Enable EDGE CHK in MT7623*/
-			tmp = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			tmp |= 0x40000000;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = tmp & 0x4fffffff;
-			wait_loop();
-#if 0
-			err_cnt[i] = ((*(volatile u_long *)(TRGMII_7623_RD_0 + i*8)) >> 8)  & 0x0000000f;     // Read MT7623 Errcnt
-#else
-			read_data = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			err_cnt[i] = (read_data >> 8)  & 0x0000000f;     // Read MT7623 Errcnt
-			rd_wd = (read_data >> 16)  & 0x000000ff;
-			if (err_cnt[i] != 0 || rd_wd !=0x55){
-				err_flag [i] =  1;
-			}
-			else {
-				err_flag[i] =0;
-			}
-#endif
-			/* Disable EDGE CHK in MT7623*/
-			tmp = *(volatile u_long *)(TRGMII_7623_RD_0 + i*8);
-			tmp |= 0x40000000;
-			*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = tmp & 0x4fffffff;
-			wait_loop();
-			//err_cnt[i] = ((*(volatile u_long *)(TRGMII_7623_RD_0 + i*8)) >> 8)  & 0x0000000f;     // Read MT7623 Errcnt
-
-		}
-#if 0
-		if (rd_tap == 128) {
-		    printk("***** MT7623 ERROR %dth bit  Tap_b = 128 ***** \n" ,i );
-		} else {   
-//		  tap_b[i] =  rd_tap;// -rxd_step_size;                                        // Record the max delay TAP_B
-		  printk("######## MT7623 Tap_b[%d] is %d \n", i,rd_tap);
-		}  
-#endif
-		tap_b[i] =  rd_tap;// -rxd_step_size;
-		printk("MT7623 %dth bit  Tap_b = %d\n", i, tap_b[i]);
-		final_tap[i] = (tap_a[i]+tap_b[i])/2;                                              //  Calculate RXD delay = (TAP_A + TAP_B)/2
-//		printk("###########******* MT7623 %dth bit Final Tap = %d\n", i, final_tap[i]);
-		read_data = (read_data & 0xffffff80) | final_tap[i];
-		*(volatile u_long *)(TRGMII_7623_RD_0 + i*8) = read_data;
-	}
-
-	mii_mgr_read(0x1F,0x7A40,&read_data);
-	//printk(" MT7530 0x7A40 = %x\n", read_data);
-	read_data &=0x3fffffff;
-	mii_mgr_write(0x1F,0x7A40,read_data);
-}
-
-
-void trgmii_calibration_7530(void){ 
-
-	unsigned int  tap_a[5] = {0, 0, 0, 0, 0};
-	unsigned int  tap_b[5] = {0, 0, 0, 0, 0};
-	unsigned int  final_tap[5];
-	unsigned int  rxc_step_size;
-	unsigned int  rxd_step_size;
-	unsigned int  read_data;
-	unsigned int  tmp;
-	int  i;
-	unsigned int err_cnt[5];
-	unsigned int rd_wd;
-	unsigned int init_toggle_data;
-	unsigned int err_flag[5];
-	unsigned int err_total_flag;
-	unsigned int training_word;
-	unsigned int rd_tap;
-	unsigned int is_mt7623_e1 = 0;
-
-	u32  TRGMII_7623_base;
-	u32  TRGMII_7530_RD_0;
-	u32  TRGMII_RXCTL;
-	u32  TRGMII_RCK_CTRL;
-	u32 TRGMII_7530_base;
-	u32 TRGMII_7530_TX_base;
-	TRGMII_7623_base = ETHDMASYS_ETH_SW_BASE+0x0300;
-	TRGMII_7530_base = 0x7A00;
-	TRGMII_7530_RD_0 = TRGMII_7530_base + 0x10;
-	TRGMII_RCK_CTRL = TRGMII_7623_base;
-	rxd_step_size = 0x1;
-	rxc_step_size = 0x8;
-	init_toggle_data = 0x00000055;
-	training_word = 0x000000AC;
-
-	TRGMII_7530_TX_base = TRGMII_7530_base + 0x50;
-
-	tmp = *(volatile u_long *)(DEVINFO_BASE+0x8);
-	if(tmp == 0x0000CA00)
-	{
-		is_mt7623_e1 = 1;
-		printk("===MT7623 E1 only===\n");
-	}
-
-	//printk("Calibration begin ........\n");
-	*(volatile u_long *)(TRGMII_7623_base + 0x40) |= 0x80000000;
-	mii_mgr_read(0x1F, 0x7a10, &read_data);
-	//printk("TRGMII_7530_RD_0 is %x\n", read_data);
-
-	mii_mgr_read(0x1F,TRGMII_7530_base+0x04,&read_data);
-	read_data &= 0x3fffffff;
-	mii_mgr_write(0x1F,TRGMII_7530_base+0x04,read_data);     // RX clock gating in MT7530
-
-	mii_mgr_read(0x1F,TRGMII_7530_base+0x78,&read_data);
-	read_data |= 0x00002000;
-	mii_mgr_write(0x1F,TRGMII_7530_base+0x78,read_data);     // Set TX OE edge in  MT7530
-
-	mii_mgr_read(0x1F,TRGMII_7530_base,&read_data);
-	read_data |= 0x80000000;
-	mii_mgr_write(0x1F,TRGMII_7530_base,read_data);          // Assert RX  reset in MT7530
-
-
-	mii_mgr_read(0x1F,TRGMII_7530_base,&read_data);
-	read_data &= 0x7fffffff;
-	mii_mgr_write(0x1F,TRGMII_7530_base,read_data);          // Release RX reset in MT7530
-
-	mii_mgr_read(0x1F,TRGMII_7530_base+0x04,&read_data);
-	read_data |= 0xC0000000;
-	mii_mgr_write(0x1F,TRGMII_7530_base+0x04,read_data);     // Disable RX clock gating in MT7530
-
-	//printk("Enable Training Mode in MT7623\n");
-	/*Enable Training Mode in MT7623*/
-	*(volatile u_long *)(TRGMII_7623_base + 0x40) &= 0xbfffffff;
-	if(is_mt7623_e1)
-		*(volatile u_long *)(TRGMII_7623_base + 0x40) |= 0x80000000;
-	else
-#if defined (CONFIG_GE1_TRGMII_FORCE_2000)
-		*(volatile u_long *)(TRGMII_7623_base + 0x40) |= 0xc0000000;
-#else
-        	*(volatile u_long *)(TRGMII_7623_base + 0x40) |= 0x80000000;
-#endif
-	*(volatile u_long *)(TRGMII_7623_base + 0x78) &= 0xfffff0ff;
-	if(is_mt7623_e1)
-		*(volatile u_long *)(TRGMII_7623_base + 0x78) |= 0x00000400;
-	else{	
-		*(volatile u_long *)(TRGMII_7623_base + 0x50) &= 0xfffff0ff;        
-		*(volatile u_long *)(TRGMII_7623_base + 0x58) &= 0xfffff0ff;
-		*(volatile u_long *)(TRGMII_7623_base + 0x60) &= 0xfffff0ff;
-		*(volatile u_long *)(TRGMII_7623_base + 0x68) &= 0xfffff0ff;
-		*(volatile u_long *)(TRGMII_7623_base + 0x70) &= 0xfffff0ff;
-		*(volatile u_long *)(TRGMII_7623_base + 0x78) |= 0x00000800;  
-	}
-        //==========================================
-
-	err_total_flag =0;
-	//printk("Adjust RXC delay in MT7530\n");
-	read_data =0x0;
-	while (err_total_flag == 0 && (read_data != 0x68)) {
-		//printk("2nd Enable EDGE CHK in MT7530\n");
-		/* Enable EDGE CHK in MT7530*/
-		for (i = 0 ; i<5 ; i++) {
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&read_data);
-			read_data |= 0x40000000;
-			read_data &= 0x4fffffff;
-			mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-		        wait_loop();
-		        //printk("2nd Disable EDGE CHK in MT7530\n");
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&err_cnt[i]);
-		        //printk("***** MT7530 %dth bit ERR_CNT =%x\n",i, err_cnt[i]);
-		        //printk("MT7530 %dth bit ERR_CNT =%x\n",i, err_cnt[i]);
-			err_cnt[i] >>= 8;
-			err_cnt[i] &= 0x0000ff0f;
-			rd_wd  = err_cnt[i] >> 8;
-		        rd_wd &= 0x000000ff;	
-			err_cnt[i] &= 0x0000000f;
-			//mii_mgr_read(0x1F,0x7a10,&read_data);
-			if ( err_cnt[i] !=0 ) {
-				err_flag[i] = 1;
-			}
-			else if (rd_wd != 0x55) {
-                                err_flag[i] = 1;
-			} else {	
-				err_flag[i] = 0;
-			}
-			if (i==0) {
-			   err_total_flag = err_flag[i];
-			} else {
-			   err_total_flag = err_flag[i] & err_total_flag;
-			}    	
-		/* Disable EDGE CHK in MT7530*/
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&read_data);
-			read_data |= 0x40000000;
-			read_data &= 0x4fffffff;
-			mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-		          wait_loop();
-		}
-		/*Adjust RXC delay*/
-		if (err_total_flag ==0) {
-	           mii_mgr_read(0x1F,TRGMII_7530_base,&read_data);
-	           read_data |= 0x80000000;
-	           mii_mgr_write(0x1F,TRGMII_7530_base,read_data);          // Assert RX  reset in MT7530
-
-		   mii_mgr_read(0x1F,TRGMII_7530_base+0x04,&read_data);
-		   read_data &= 0x3fffffff;
-		   mii_mgr_write(0x1F,TRGMII_7530_base+0x04,read_data);       // RX clock gating in MT7530
-
-		   mii_mgr_read(0x1F,TRGMII_7530_base,&read_data);
-		   tmp = read_data;
-		   tmp &= 0x0000007f;
-		   tmp += rxc_step_size;
-		   //printk("Current rxc delay = %d\n", tmp);
-		   read_data &= 0xffffff80;
-		   read_data |= tmp;
-		   mii_mgr_write (0x1F,TRGMII_7530_base,read_data);
-		   mii_mgr_read(0x1F,TRGMII_7530_base,&read_data);
-		   //printk("Current RXC delay = %x\n", read_data); 
-
-	           mii_mgr_read(0x1F,TRGMII_7530_base,&read_data);
-	           read_data &= 0x7fffffff;
-	           mii_mgr_write(0x1F,TRGMII_7530_base,read_data);          // Release RX reset in MT7530
-
-		   mii_mgr_read(0x1F,TRGMII_7530_base+0x04,&read_data);
-		   read_data |= 0xc0000000;
-		   mii_mgr_write(0x1F,TRGMII_7530_base+0x04,read_data);       // Disable RX clock gating in MT7530
-                }
-		read_data = tmp;
-	}
-//	printk("####### MT7530 RXC delay is %d\n", tmp);
-	//printk("Finish RXC Adjustment while loop\n");
-
-	//printk("Read RD_WD MT7530\n");
-	/* Read RD_WD MT7530*/
-	for  (i = 0 ; i<5 ; i++) {
-		rd_tap = 0;
-		while (err_flag[i] != 0 && rd_tap != 128) {
-			/* Enable EDGE CHK in MT7530*/
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&read_data);
-			read_data |= 0x40000000;
-			read_data &= 0x4fffffff;
-			mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-		        wait_loop();
-			err_cnt[i] = (read_data >> 8) & 0x0000000f; 
-		        rd_wd = (read_data >> 16) & 0x000000ff;
-		        //printk("##### %dth bit  ERR_CNT = %x RD_WD =%x ######\n", i, err_cnt[i],rd_wd);
-			if (err_cnt[i] != 0 || rd_wd !=0x55){
-		           err_flag [i] =  1;
-			}   
-			else {
-			   err_flag[i] =0;
-		        }	
-			if (err_flag[i] !=0 ) { 
-			   rd_tap = (read_data & 0x0000007f) + rxd_step_size;                        // Add RXD delay in MT7530
-			   read_data = (read_data & 0xffffff80) | rd_tap;
-			   mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-			   tap_a[i] = rd_tap;
-			} else {
-			   tap_a[i] = (read_data & 0x0000007f);			                    // Record the min delay TAP_A
-	                   rd_tap   =  tap_a[i] + 0x4; 
-			   read_data = (read_data & 0xffffff80) | rd_tap  ;
-			   mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-			}	
-
-			/* Disable EDGE CHK in MT7530*/
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&read_data);
-			read_data |= 0x40000000;
-			read_data &= 0x4fffffff;
-			mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-		        wait_loop();
-
-		}
-		printk("MT7530 %dth bit  Tap_a = %d\n", i, tap_a[i]);
-#if 0 
-		if (tap_a[i] == 128) {
-			printk("****** MT7530 ERROR *** %dth bit  Tap_a = 128 ******\n", i );
-		}else {   
-			printk("####### MT7530 %dth bit  Tap_a = %d\n", i, tap_a[i]);
-		}  
-#endif
-		//printk("%dth bit  Tap_a = %d\n", i, tap_a[i]);
-	}
-	//printk("Last While Loop\n");
-	for  (i = 0 ; i<5 ; i++) {
-	rd_tap =0;
-//		while (err_cnt[i] == 0 && (rd_tap!=128)) {
-		while (err_flag[i] == 0 && (rd_tap!=128)) {
-			/* Enable EDGE CHK in MT7530*/
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&read_data);
-			read_data |= 0x40000000;
-			read_data &= 0x4fffffff;
-			mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-			wait_loop();
-#if 0
-			err_cnt[i] = (read_data >> 8) & 0x0000000f;
-#else
-			err_cnt[i] = (read_data >> 8) & 0x0000000f;
-			rd_wd = (read_data >> 16) & 0x000000ff;
-			if (err_cnt[i] != 0 || rd_wd !=0x55){
-				err_flag [i] =  1;
-			}
-			else {
-				err_flag[i] =0;
-			}
-#endif
-			//rd_tap = (read_data & 0x0000007f) + 0x4;                                    // Add RXD delay in MT7530
-//			if (err_cnt[i] == 0 && (rd_tap!=128)) {
-			if (err_flag[i] == 0 && (rd_tap!=128)) {
-			    rd_tap = (read_data & 0x0000007f) + rxd_step_size;                        // Add RXD delay in MT7530
-			    read_data = (read_data & 0xffffff80) | rd_tap;
-			    mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-			}    
-			/* Disable EDGE CHK in MT7530*/
-			mii_mgr_read(0x1F,TRGMII_7530_RD_0+i*8,&read_data);
-			read_data |= 0x40000000;
-			read_data &= 0x4fffffff;
-			mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-			wait_loop();
-		}
-#if 0 
-		if (rd_tap == 128) {
-			printk(" ******** MT7530 ERROR %dth bit  Tap_b = 128 ******\n" ,i);
-		}else{   
-			//		  tap_b[i] = rd_tap;// - rxd_step_size;                                     // Record the max delay TAP_B
-			printk("######## MT7530 %dth bit  Tap_b = %d\n", i, rd_tap);
-		}  
-#endif
-		tap_b[i] = rd_tap;// - rxd_step_size;
-		printk("MT7530 %dth bit  Tap_b = %d\n", i, tap_b[i]);
-		final_tap[i] = (tap_a[i]+tap_b[i])/2;                                     //  Calculate RXD delay = (TAP_A + TAP_B)/2
-//		printk("########****** MT7530 %dth bit Final Tap = %d\n", i, final_tap[i]);
-
-		read_data = ( read_data & 0xffffff80) | final_tap[i];
-		mii_mgr_write(0x1F,TRGMII_7530_RD_0+i*8,read_data);
-	}
-	if(is_mt7623_e1)
-		*(volatile u_long *)(TRGMII_7623_base + 0x40) &=0x3fffffff;
-	else
-#if defined (CONFIG_GE1_TRGMII_FORCE_2000)
-	        *(volatile u_long *)(TRGMII_7623_base + 0x40) &=0x7fffffff;
-#else
-                *(volatile u_long *)(TRGMII_7623_base + 0x40) &=0x3fffffff;
-#endif
-
-}
-
-void mt7530_trgmii_clock_setting(u32 xtal_mode)
-{
-
-	u32     regValue;
-	/* TRGMII Clock */
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x410);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0x1);
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x404);
-	mii_mgr_write(0, 13, 0x401f);
-	if (xtal_mode == 1){ //25MHz
-#if defined (CONFIG_GE1_TRGMII_FORCE_2900)
-		mii_mgr_write(0, 14, 0x1d00); // 362.5MHz
-#elif defined (CONFIG_GE1_TRGMII_FORCE_2600)
-		mii_mgr_write(0, 14, 0x1a00); // 325MHz
-#elif defined (CONFIG_GE1_TRGMII_FORCE_2000)
-		mii_mgr_write(0, 14, 0x1400); //250MHz
-#elif defined (CONFIG_GE1_RGMII_FORCE_1000)
-		mii_mgr_write(0, 14, 0x0a00); //125MHz
-#endif
-	}else if(xtal_mode == 2){//40MHz
-#if defined (CONFIG_GE1_TRGMII_FORCE_2900)
-		mii_mgr_write(0, 14, 0x1220); // 362.5MHz
-#elif defined (CONFIG_GE1_TRGMII_FORCE_2600)
-		mii_mgr_write(0, 14, 0x1040); // 325MHz
-#elif defined (CONFIG_GE1_TRGMII_FORCE_2000)
-		mii_mgr_write(0, 14, 0x0c80); //250MHz
-#elif defined (CONFIG_GE1_RGMII_FORCE_1000)
-		mii_mgr_write(0, 14, 0x0640); //125MHz
-#endif	
-	}
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x405);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0x0);
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x409);
-	mii_mgr_write(0, 13, 0x401f);
-	if(xtal_mode == 1)//25MHz
-		mii_mgr_write(0, 14, 0x0057);
-	else
-		mii_mgr_write(0, 14, 0x0087);	
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x40a);
-	mii_mgr_write(0, 13, 0x401f);
-	if(xtal_mode == 1)//25MHz
-		mii_mgr_write(0, 14, 0x0057);
-	else
-		mii_mgr_write(0, 14, 0x0087);
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x403);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0x1800);
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x403);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0x1c00);
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x401);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0xc020);
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x406);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0xa030);
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x406);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0xa038);
-
-	udelay(120); // for MT7623 bring up test
-
-	mii_mgr_write(0, 13, 0x1f);
-	mii_mgr_write(0, 14, 0x410);
-	mii_mgr_write(0, 13, 0x401f);
-	mii_mgr_write(0, 14, 0x3);
-
-
-	mii_mgr_read(31, 0x7830 ,&regValue);
-	regValue &=0xFFFFFFFC;
-	regValue |=0x00000001;
-	mii_mgr_write(31, 0x7830, regValue);
-
-	mii_mgr_read(31, 0x7a40 ,&regValue);
-	regValue &= ~(0x1<<30);
-	regValue &= ~(0x1<<28);
-	mii_mgr_write(31, 0x7a40, regValue);
-
-	mii_mgr_write(31, 0x7a78, 0x55);            
-	udelay(100); // for mt7623 bring up test
-
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) &= 0x7fffffff;   // Release MT7623 RXC reset
-
-	trgmii_calibration_7623();
-	trgmii_calibration_7530();
-	regValue = *(volatile u_long *)(DEVINFO_BASE+0x8);
-	if(regValue == 0x0000CA00)
-	{
-		printk("===MT7623 E1 only===\n");
-		*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0304) &= 0x3fffffff;         // RX clock gating in MT7623
-		*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) |= 0x80000000;         // Assert RX  reset in MT7623
-		*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) &= 0x7fffffff;         // Release RX reset in MT7623
-		*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0304) |= 0xC0000000;         // Disable RX clock gating in MT7623
-	}else{
-		*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) |= 0x80000000;         // Assert RX  reset in MT7623
-		*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) &= 0x7fffffff;         // Release RX reset in MT7623
-	}
-	/*TRGMII DEBUG*/
-	mii_mgr_read(31, 0x7a00 ,&regValue);
-	regValue |= (0x1<<31);
-	mii_mgr_write(31, 0x7a00, regValue);
-	mdelay(1);
-	regValue &= ~(0x1<<31);
-	mii_mgr_write(31, 0x7a00, regValue);
-	mdelay(100);
-
-
-}
-
-void set_trgmii_325_delay_setting(void)
-{
-	/*mt7530 side*/                               
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) = 0x80020050;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0304) = 0x00980000;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) = 0x40020050;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0304) = 0xc0980000;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0310) = 0x00000028;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0318) = 0x0000002e;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0320) = 0x0000002d;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0328) = 0x0000002b;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0330) = 0x0000002a;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0340) = 0x00020000;
-	/*mt7530 side*/                               
-	mii_mgr_write(31, 0x7a00, 0x10);              
-	mii_mgr_write(31, 0x7a10, 0x23);              
-	mii_mgr_write(31, 0x7a18, 0x27);              
-	mii_mgr_write(31, 0x7a20, 0x24);              
-	mii_mgr_write(31, 0x7a28, 0x29);              
-	mii_mgr_write(31, 0x7a30, 0x24);              
-
-}
-
-void mt7623_ethifsys_init(void)
-{
-#define TRGPLL_CON0             (APMIXEDSYS_BASE+0x280)
-#define TRGPLL_CON1             (APMIXEDSYS_BASE+0x284)
-#define TRGPLL_CON2             (APMIXEDSYS_BASE+0x288)
-#define TRGPLL_PWR_CON0         (APMIXEDSYS_BASE+0x28C)
-#define ETHPLL_CON0             (APMIXEDSYS_BASE+0x290)
-#define ETHPLL_CON1             (APMIXEDSYS_BASE+0x294)
-#define ETHPLL_CON2             (APMIXEDSYS_BASE+0x298)
-#define ETHPLL_PWR_CON0         (APMIXEDSYS_BASE+0x29C)
-#define ETH_PWR_CON             (SPM_BASE+0x2A0)
-#define HIF_PWR_CON             (SPM_BASE+0x2A4)
-
-	u32 temp, pwr_ack_status;
-	/*=========================================================================*/
-	/* Enable ETHPLL & TRGPLL*/
-	/*=========================================================================*/
-	/* xPLL PWR ON*/
-	temp = sysRegRead(ETHPLL_PWR_CON0);
-	sysRegWrite(ETHPLL_PWR_CON0, temp | 0x1);
-
-	temp = sysRegRead(TRGPLL_PWR_CON0);
-	sysRegWrite(TRGPLL_PWR_CON0, temp | 0x1);
-
-	udelay(5); /* wait for xPLL_PWR_ON ready (min delay is 1us)*/
-
-	/* xPLL ISO Disable*/
-	temp = sysRegRead(ETHPLL_PWR_CON0);
-	sysRegWrite(ETHPLL_PWR_CON0, temp & ~0x2);
-
-	temp = sysRegRead(TRGPLL_PWR_CON0);
-	sysRegWrite(TRGPLL_PWR_CON0, temp & ~0x2);
-
-	/* xPLL Frequency Set*/
-	temp = sysRegRead(ETHPLL_CON0);
-	sysRegWrite(ETHPLL_CON0, temp | 0x1);
-#if defined (CONFIG_GE1_TRGMII_FORCE_2900)
-	temp = sysRegRead(TRGPLL_CON0);
-	sysRegWrite(TRGPLL_CON0,  temp | 0x1);
-#elif defined (CONFIG_GE1_TRGMII_FORCE_2600)	
-	sysRegWrite(TRGPLL_CON1,  0xB2000000);
-	temp = sysRegRead(TRGPLL_CON0);
-	sysRegWrite(TRGPLL_CON0, temp | 0x1);
-#elif defined (CONFIG_GE1_TRGMII_FORCE_2000)
-	sysRegWrite(TRGPLL_CON1, 0xCCEC4EC5);
-	sysRegWrite(TRGPLL_CON0,  0x121);
-#endif
-	udelay(40); /* wait for PLL stable (min delay is 20us)*/
-
-
-	/*=========================================================================*/
-	/* Power on ETHDMASYS and HIFSYS*/
-	/*=========================================================================*/
-	/* Power on ETHDMASYS*/
-	sysRegWrite(SPM_BASE+0x000, 0x0b160001);
-	pwr_ack_status = (sysRegRead(ETH_PWR_CON) & 0x0000f000) >> 12;
-
-	if(pwr_ack_status == 0x0) {
-		printk("ETH already turn on and power on flow will be skipped...\n");
-	}else {
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp | 0x4);	       /* PWR_ON*/
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp | 0x8);	       /* PWR_ON_S*/
-
-		udelay(5); /* wait power settle time (min delay is 1us)*/
-
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp & ~0x10);      /* PWR_CLK_DIS*/
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp & ~0x2);	      /* PWR_ISO*/
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp & ~0x100);   /* SRAM_PDN 0*/
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp & ~0x200);   /* SRAM_PDN 1*/
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp & ~0x400);   /* SRAM_PDN 2*/
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp & ~0x800);   /* SRAM_PDN 3*/
-
-		udelay(5); /* wait SRAM settle time (min delay is 1Us)*/
-
-		temp = sysRegRead(ETH_PWR_CON)	;
-		sysRegWrite(ETH_PWR_CON, temp | 0x1);	       /* PWR_RST_B*/
-	}
-
-	/* Power on HIFSYS*/
-	pwr_ack_status = (sysRegRead(HIF_PWR_CON) & 0x0000f000) >> 12;
-	if(pwr_ack_status == 0x0) {
-		printk("HIF already turn on and power on flow will be skipped...\n");
-	}
-	else {
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp | 0x4);          /* PWR_ON*/
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp | 0x8);          /* PWR_ON_S*/
-
-		udelay(5); /* wait power settle time (min delay is 1us)*/
-
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp & ~0x10);      /* PWR_CLK_DIS*/
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp & ~0x2);        /* PWR_ISO*/
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp & ~0x100);   /* SRAM_PDN 0*/
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp & ~0x200);   /* SRAM_PDN 1*/
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp & ~0x400);   /* SRAM_PDN 2*/
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp & ~0x800);   /* SRAM_PDN 3*/
-
-		udelay(5); /* wait SRAM settle time (min delay is 1Us)*/
-
-		temp = sysRegRead(HIF_PWR_CON)  ;
-		sysRegWrite(HIF_PWR_CON, temp | 0x1);          /* PWR_RST_B*/
-	}
-
-	/* Release mt7530 reset */
-	temp = le32_to_cpu(*(volatile u_long *)(RALINK_SYSCTL_BASE+0x34));
-	temp &= ~(BIT(2));
-	*(volatile u_long *)(RALINK_SYSCTL_BASE+0x34) = temp;
-}
-
-
-#endif
-
-#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)
-void setup_external_gsw(void)
-{
-	u32     regValue;
-
-	/* reduce RGMII2 PAD driving strength */
-	*(volatile u_long *)(PAD_RGMII2_MDIO_CFG) &= ~(0x3 << 4);
-	/*enable MDIO */
-	regValue = le32_to_cpu(*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60));
-	regValue &= ~(0x3 << 12);
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) = regValue;
-
-	/*RGMII1=Normal mode*/
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) &= ~(0x1 << 14);
-	/*GMAC1= RGMII mode*/
-	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 12);
-
-	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x00008000);//(GE1, Link down)
-
-	/*RGMII2=Normal mode*/
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) &= ~(0x1 << 15);
-	/*GMAC2= RGMII mode*/
-	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 14);
-
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x2105e33b);//(GE2, Force 1000M/FD, FC ON)
-
-}
-
-
-void IsSwitchVlanTableBusy(void)
-{
-	int j = 0;
-	unsigned int value = 0;
-
-	for (j = 0; j < 20; j++) {
-		mii_mgr_read(31, 0x90, &value);
-		if ((value & 0x80000000) == 0 ){ //table busy
-			break;
-		}
-		mdelay(70);
-	}
-	if (j == 20)
-		printk("set vlan timeout value=0x%x.\n", value);
-}
-
-void LANWANPartition(void)
-{
-	/*Set  MT7530 */
-#ifdef CONFIG_WAN_AT_P0
-	printk("set LAN/WAN WLLLL\n");
-	/*WLLLL, wan at P0*/
-	/*LAN/WAN ports as security mode*/
-	mii_mgr_write(31, 0x2004, 0xff0003);//port0
-	mii_mgr_write(31, 0x2104, 0xff0003);//port1
-	mii_mgr_write(31, 0x2204, 0xff0003);//port2
-	mii_mgr_write(31, 0x2304, 0xff0003);//port3
-	mii_mgr_write(31, 0x2404, 0xff0003);//port4
-
-	/*set PVID*/
-	mii_mgr_write(31, 0x2014, 0x10002);//port0
-	mii_mgr_write(31, 0x2114, 0x10001);//port1
-	mii_mgr_write(31, 0x2214, 0x10001);//port2
-	mii_mgr_write(31, 0x2314, 0x10001);//port3
-	mii_mgr_write(31, 0x2414, 0x10001);//port4
-	/*port6 */
-	/*VLAN member*/
-	IsSwitchVlanTableBusy();
-	mii_mgr_write(31, 0x94, 0x407e0001);//VAWD1
-	mii_mgr_write(31, 0x90, 0x80001001);//VTCR, VID=1
-	IsSwitchVlanTableBusy();
-
-	mii_mgr_write(31, 0x94, 0x40610001);//VAWD1
-	mii_mgr_write(31, 0x90, 0x80001002);//VTCR, VID=2
-	IsSwitchVlanTableBusy();
-#endif
-#ifdef CONFIG_WAN_AT_P4
-	printk("set LAN/WAN LLLLW\n");
-	/*LLLLW, wan at P4*/
-	/*LAN/WAN ports as security mode*/
-	mii_mgr_write(31, 0x2004, 0xff0003);//port0
-	mii_mgr_write(31, 0x2104, 0xff0003);//port1
-	mii_mgr_write(31, 0x2204, 0xff0003);//port2
-	mii_mgr_write(31, 0x2304, 0xff0003);//port3
-	mii_mgr_write(31, 0x2404, 0xff0003);//port4
-
-	/*set PVID*/
-	mii_mgr_write(31, 0x2014, 0x10001);//port0
-	mii_mgr_write(31, 0x2114, 0x10001);//port1
-	mii_mgr_write(31, 0x2214, 0x10001);//port2
-	mii_mgr_write(31, 0x2314, 0x10001);//port3
-	mii_mgr_write(31, 0x2414, 0x10002);//port4
-
-	/*VLAN member*/
-	IsSwitchVlanTableBusy();
-	mii_mgr_write(31, 0x94, 0x404f0001);//VAWD1
-	mii_mgr_write(31, 0x90, 0x80001001);//VTCR, VID=1
-	IsSwitchVlanTableBusy();
-	mii_mgr_write(31, 0x94, 0x40500001);//VAWD1
-	mii_mgr_write(31, 0x90, 0x80001002);//VTCR, VID=2
-	IsSwitchVlanTableBusy();
-#endif
-}
-
-void setup_internal_gsw(void)
-{
-	u32	i;
-	u32	regValue;
-	u32     xtal_mode;
-
-#if defined (CONFIG_ARCH_MT7623)
-	mt7623_pinmux_set();
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0390) |= 0x00000002; //TRGMII mode
-#endif
-
-#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200) || defined (CONFIG_GE1_TRGMII_FORCE_2000) || defined (CONFIG_GE1_TRGMII_FORCE_2600)	
-	/*Hardware reset Switch*/
-#if defined(CONFIG_ARCH_MT7623)
-
-	
-	*(volatile u_long *)(ETH_GPIO_BASE+0x520) &= ~(1<<1);
-	udelay(1000);
-	*(volatile u_long *)(ETH_GPIO_BASE+0x520) |= (1<<1);
-	mdelay(100);
-
-	/*printk("Assert MT7623 RXC reset\n");*/
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) |= 0x80000000;   // Assert MT7623 RXC reset
-	/*For MT7623 reset MT7530*/
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x34) |= (0x1 << 2);
-	udelay(1000);
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x34) &= ~(0x1 << 2);
-	mdelay(100);
-#elif defined (CONFIG_MT7621_ASIC)
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x34) |= (0x1 << 2);
-	udelay(1000);
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x34) &= ~(0x1 << 2);
-	udelay(10000);
-#endif
-
-	/* Wait for Switch Reset Completed*/
-	for(i=0;i<100;i++)
-	{
-		mdelay(10);
-		mii_mgr_read(31, 0x7800 ,&regValue);
-		if(regValue != 0){
-			printk("MT7530 Reset Completed!!\n");
-			break;
-		}
-		if(i == 99)
-			printk("MT7530 Reset Timeout!!\n");
-	}
-
-#if defined (CONFIG_MT7621_ASIC)
-	/* reduce RGMII2 PAD driving strength */
-	*(volatile u_long *)(PAD_RGMII2_MDIO_CFG) &= ~(0x3 << 4);
-
-	/*RGMII1=Normal mode*/
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) &= ~(0x1 << 14);
-
-	/*GMAC1= RGMII mode*/
-	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 12);
-
-	/*enable MDIO to control MT7530*/
-	regValue = le32_to_cpu(*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60));
-	regValue &= ~(0x3 << 12);
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) = regValue;
-#endif
-
-
-
-	for(i=0;i<=4;i++)
-	{
-		/*turn off PHY*/
-		mii_mgr_read(i, 0x0 ,&regValue);
-		regValue |= (0x1<<11);
-		mii_mgr_write(i, 0x0, regValue);	
-	}
-	mii_mgr_write(31, 0x7000, 0x3); //reset switch
-	udelay(100);
-
-
-#if defined (CONFIG_GE1_TRGMII_FORCE_1200) && defined (CONFIG_MT7621_ASIC)
-	trgmii_set_7530();   //reset FE, config MDIO again
-
-	/*enable MDIO to control MT7530*/
-	regValue = le32_to_cpu(*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60));
-	regValue &= ~(0x3 << 12);
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) = regValue;
-
-	/* switch to APLL if TRGMII and DDR2*/
-	if ((sysRegRead(RALINK_SYSCTL_BASE+0x10)>>4)&0x1)
-	{
-		apll_xtal_enable();
-	}
-#endif
-
-#if defined (CONFIG_MT7621_ASIC)
-	if((sysRegRead(RALINK_SYSCTL_BASE+0xc)&0xFFFF)==0x0101) {
-		sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2105e30b);//(GE1, Force 1000M/FD, FC ON)
-		mii_mgr_write(31, 0x3600, 0x5e30b);
-	} else {
-		sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2105e33b);//(GE1, Force 1000M/FD, FC ON)
-		mii_mgr_write(31, 0x3600, 0x5e33b);
-	}
-#elif defined (CONFIG_MT7621_FPGA)
-	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2105e337);//(GE1, Force 100M/FD, FC ON)
-	mii_mgr_write(31, 0x3600, 0x5e337);
-#elif defined (CONFIG_ARCH_MT7623)
-	{
-		sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x2105e33b);//(GE1, Force 1000M/FD, FC ON)
-		mii_mgr_write(31, 0x3600, 0x5e33b);
-		mii_mgr_read(31, 0x3600 ,&regValue);
-	}
-#endif
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x00008000);//(GE2, Link down)
-#endif
-
-#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200) || defined (CONFIG_GE1_TRGMII_FORCE_2000) || defined (CONFIG_GE1_TRGMII_FORCE_2600)
-	/*regValue = 0x117ccf;*/ //Enable Port 6, P5 as GMAC5, P5 disable*/
-	mii_mgr_read(31, 0x7804 ,&regValue);
-	regValue &= ~(1<<8); //Enable Port 6
-	regValue |= (1<<6); //Disable Port 5
-	regValue |= (1<<13); //Port 5 as GMAC, no Internal PHY
-
-#if defined (CONFIG_RAETH_GMAC2)
-	/*RGMII2=Normal mode*/
-	*(volatile u_long *)(RALINK_SYSCTL_BASE + 0x60) &= ~(0x1 << 15);
-
-	/*GMAC2= RGMII mode*/
-	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 14);
-#ifdef CONFIG_GE2_RGMII_AN
-	mii_mgr_write(31, 0x3500, 0x56300);
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x21056300);//(GE2, auto-polling)
-	enable_auto_negotiate(0);
-#else
-	mii_mgr_write(31, 0x3500, 0x5e33b); //MT7530 P5 Force 1000, we can ignore this setting??????
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x2105e33b);//(GE2, Force 1000)
-
-#endif
-
-	/* set MT7530 Port 5 to PHY 0/4 mode */
-#if defined (CONFIG_GE_RGMII_INTERNAL_P0_AN)
-	regValue &= ~(1<<6);
-	regValue |= ((1<<7)|((1<<13)|1<<16)|(1<<20));
-#elif defined (CONFIG_GE_RGMII_INTERNAL_P4_AN)
-	regValue &= ~((1<<6)|(1<<20));
-	regValue |= ((1<<7)|(1<<13)|(1<<16));
-#endif
-
-	/*sysRegWrite(GDMA2_FWD_CFG, 0x20710000);*/
-#endif
-	regValue &= ~(1<<5);
-#ifdef CONFIG_GE2_RGMII_AN
-	regValue |= (1<<6); //disable P5
-#else
-	regValue &= ~(1<<6); //enable P5
-#endif
-	regValue |= (1<<16);//change HW-TRAP
-        printk("change HW-TRAP to 0x%x\n",regValue);
-	mii_mgr_write(31, 0x7804 ,regValue);
-#endif
-	mii_mgr_read(31, 0x7800, &regValue);
-	regValue = (regValue >> 9) & 0x3;
-	if(regValue == 0x3){//25Mhz Xtal
-		xtal_mode = 1;
-		/*Do Nothing*/
-	}else if(regValue == 0x2){ //40Mhz
-		xtal_mode = 2;
-		mii_mgr_write(0, 13, 0x1f);  // disable MT7530 core clock
-		mii_mgr_write(0, 14, 0x410);
-		mii_mgr_write(0, 13, 0x401f);
-		mii_mgr_write(0, 14, 0x0);
-
-		mii_mgr_write(0, 13, 0x1f);  // disable MT7530 PLL
-		mii_mgr_write(0, 14, 0x40d);
-		mii_mgr_write(0, 13, 0x401f);
-		mii_mgr_write(0, 14, 0x2020);
-
-		mii_mgr_write(0, 13, 0x1f);  // for MT7530 core clock = 500Mhz
-		mii_mgr_write(0, 14, 0x40e);
-		mii_mgr_write(0, 13, 0x401f);
-		mii_mgr_write(0, 14, 0x119);
-
-		mii_mgr_write(0, 13, 0x1f);  // enable MT7530 PLL
-		mii_mgr_write(0, 14, 0x40d);
-		mii_mgr_write(0, 13, 0x401f);
-		mii_mgr_write(0, 14, 0x2820);
-
-		udelay(20); //suggest by CD
-
-		mii_mgr_write(0, 13, 0x1f);  // enable MT7530 core clock
-		mii_mgr_write(0, 14, 0x410);
-		mii_mgr_write(0, 13, 0x401f);
-
-	}else{
-		xtal_mode = 3;
-		/*TODO*/
-	}
-
-
-#if defined (CONFIG_GE1_TRGMII_FORCE_1200) && defined (CONFIG_MT7621_ASIC)
-	mii_mgr_write(0, 14, 0x3); /*TRGMII*/
-#else
-	mii_mgr_write(0, 14, 0x1);  /*RGMII*/
-	/* set MT7530 central align */
-	mii_mgr_read(31, 0x7830, &regValue);
-	regValue &= ~1;
-	regValue |= 1<<1;
-	mii_mgr_write(31, 0x7830, regValue);
-
-	mii_mgr_read(31, 0x7a40, &regValue);
-	regValue &= ~(1<<30);
-	mii_mgr_write(31, 0x7a40, regValue);
-
-	regValue = 0x855;
-	mii_mgr_write(31, 0x7a78, regValue);
-#endif
-
-#if defined (CONFIG_MT7621_ASIC)
-	mii_mgr_write(31, 0x7b00, 0x102);  //delay setting for 10/1000M
-	mii_mgr_write(31, 0x7b04, 0x14);  //delay setting for 10/1000M
-
-	mii_mgr_write(31, 0x7a54, 0x44);  //lower driving
-	mii_mgr_write(31, 0x7a5c, 0x44);  //lower driving
-	mii_mgr_write(31, 0x7a64, 0x44);  //lower driving
-	mii_mgr_write(31, 0x7a6c, 0x44);  //lower driving
-	mii_mgr_write(31, 0x7a74, 0x44);  //lower driving
-	mii_mgr_write(31, 0x7a7c, 0x44);  //lower driving
-
-#elif defined(CONFIG_ARCH_MT7623)
-	mii_mgr_write(31, 0x7b00, 0x104);  //delay setting for 10/1000M
-	mii_mgr_write(31, 0x7b04, 0x10);  //delay setting for 10/1000M
-
-	/*Tx Driving*/
-	mii_mgr_write(31, 0x7a54, 0x88);  //lower GE1 driving
-	mii_mgr_write(31, 0x7a5c, 0x88);  //lower GE1 driving
-	mii_mgr_write(31, 0x7a64, 0x88);  //lower GE1 driving
-	mii_mgr_write(31, 0x7a6c, 0x88);  //lower GE1 driving
-	mii_mgr_write(31, 0x7a74, 0x88);  //lower GE1 driving
-	mii_mgr_write(31, 0x7a7c, 0x88);  //lower GE1 driving
-	mii_mgr_write(31, 0x7810, 0x11);  //lower GE2 driving
-	/*Set MT7623 TX Driving*/
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0354) = 0x88;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x035c) = 0x88;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0364) = 0x88;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x036c) = 0x88;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0374) = 0x88;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x037c) = 0x88;
-#if defined (CONFIG_GE2_RGMII_AN)
-	*(volatile u_long *)(ETH_GPIO_BASE+0xf00) = 0xe00; //Set GE2 driving and slew rate
-#else
-	*(volatile u_long *)(ETH_GPIO_BASE+0xf00) = 0xa00; //Set GE2 driving and slew rate
-#endif
-	*(volatile u_long *)(ETH_GPIO_BASE+0x4c0) = 0x5;   //set GE2 TDSEL
-	*(volatile u_long *)(ETH_GPIO_BASE+0xed0) = 0;     //set GE2 TUNE
-
-	mt7530_trgmii_clock_setting(xtal_mode);
-#endif
-
-
-	LANWANPartition();
-	mt7530_phy_setting();
-	for(i=0;i<=4;i++)
-	{
-		/*turn on PHY*/
-		mii_mgr_read(i, 0x0 ,&regValue);
-		regValue &= ~(0x1<<11);
-		mii_mgr_write(i, 0x0, regValue);
-	}
-
-	mii_mgr_read(31, 0x7808 ,&regValue);
-	regValue |= (3<<16); //Enable INTR
-	mii_mgr_write(31, 0x7808 ,regValue);
-}
-
-
 #endif
 
 /**
@@ -6108,7 +4372,6 @@ int __init ra2882eth_init(void)
 {
 	int ret;
 	struct net_device *dev = alloc_etherdev(sizeof(END_DEVICE));
-	END_DEVICE*     ei_local = netdev_priv(dev);
 
 #ifdef CONFIG_RALINK_VISTA_BASIC
 	int sw_id=0;
@@ -6120,15 +4383,7 @@ int __init ra2882eth_init(void)
 		return -ENOMEM;
 
 	strcpy(dev->name, DEV_NAME);
-#if defined (CONFIG_MIPS)	
 	dev->irq  = IRQ_ENET0;
-#else
-	ei_local->irq0 = IRQ_ENET0;
-#if defined (CONFIG_RAETH_TX_RX_INT_SEPARATION)	
-	ei_local->irq1 = IRQ_ENET1;
-	ei_local->irq2 = IRQ_ENET2;
-#endif
-#endif
 	dev->addr_len = 6;
 	dev->base_addr = RALINK_FRAME_ENGINE_BASE;
 
@@ -6163,9 +4418,6 @@ int __init ra2882eth_init(void)
 	ret = debug_proc_init();
 
 	dev_raether = dev;
-#ifdef CONFIG_ARCH_MT7623
-	mt7623_ethifsys_init();
-#endif
 	return ret;
 }
 
@@ -6177,12 +4429,12 @@ int __init ra2882eth_init(void)
 
 void fe_sw_init(void)
 {
-#if defined (CONFIG_MODEL_RTAC85U) || defined(CONFIG_MODEL_RTAC85P) || defined(CONFIG_MODEL_RTAC65U) || defined(CONFIG_MODEL_RTN800HP) || defined(CONFIG_MODEL_RTACRH26)  	//only initialize at boot time.
+#if defined(RTAC1200GA1) || defined(RTACRH26) || defined(K2P)//only initialize at boot time.
  	   if(!first_gsw_init) 
 		first_gsw_init=1;
 	   else  //prevent from resetting vlan 
 	 	return; 
-#endif
+#endif	 
 #if defined (CONFIG_GIGAPHY) || defined (CONFIG_RAETH_ROUTER) || defined (CONFIG_100PHY)
         unsigned int regValue = 0;
 #endif
@@ -6204,13 +4456,10 @@ void fe_sw_init(void)
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, &regValue);
 		regValue |= 1<<15; //PHY Software Reset
 	 	mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, regValue);
-#elif defined (CONFIG_MT7621_FPGA) || defined (CONFIG_MT7623_FPGA)
+#elif defined (CONFIG_MT7621_FPGA)
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 9, &regValue);
 		regValue &= ~(3<<8); //turn off 1000Base-T Advertisement  (9.9=1000Full, 9.8=1000Half)
 		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 9, regValue);
-	
-		/*10Mbps, debug*/
-		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 4, 0x461);
 
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 0, &regValue);
 		regValue |= 1<<9; //restart AN
@@ -6229,7 +4478,7 @@ void fe_sw_init(void)
 		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR, 31, 0);
         }
 #if defined (CONFIG_RALINK_MT7621)
-	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x21056300);//(P0, Auto mode)
+	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x20056300);//(P0, Auto mode)
 #endif
 #endif // CONFIG_GE1_RGMII_AN //
 
@@ -6249,14 +4498,10 @@ void fe_sw_init(void)
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 0, &regValue);
 		regValue |= 1<<15; //PHY Software Reset
 		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 0, regValue);
-#elif defined (CONFIG_MT7621_FPGA) || defined (CONFIG_MT7623_FPGA)
+#elif defined (CONFIG_MT7621_FPGA)
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 9, &regValue);
 		regValue &= ~(3<<8); //turn off 1000Base-T Advertisement (9.9=1000Full, 9.8=1000Half)
 		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 9, regValue);
-		
-		/*10Mbps, debug*/
-		mii_mgr_write(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 4, 0x461);
-
 
 		mii_mgr_read(CONFIG_MAC_TO_GIGAPHY_MODE_ADDR2, 0, &regValue);
 		regValue |= 1<<9; //restart AN
@@ -6280,53 +4525,25 @@ void fe_sw_init(void)
 	//GMAC2= RGMII mode
 	*(volatile u_long *)(SYSCFG1) &= ~(0x3 << 14);
 
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x21056300);//(P1, Auto mode)
+	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x20056300);//(P1, Auto mode)
 #endif
 #endif // CONFIG_GE2_RGMII_AN //
 
 	// Case3: RT305x/RT335x/RT6855/RT6855A/MT7620 + EmbeddedSW
-#if defined (CONFIG_RT_3052_ESW) && !defined(CONFIG_RALINK_MT7621) && !defined(CONFIG_ARCH_MT7623)
+#if defined (CONFIG_RT_3052_ESW) && !defined(CONFIG_RALINK_MT7621)
 #if defined (CONFIG_RALINK_RT6855) || defined(CONFIG_RALINK_MT7620)
 	rt_gsw_init();
+#elif defined(CONFIG_RALINK_RT6855A)
+	rt6855A_gsw_init();
 #else
 	rt305x_esw_init();
 #endif
 #endif 
 	// Case4:  RT288x/RT388x/MT7621 GE1 + Internal GigaSW
-#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200)  || defined (CONFIG_GE1_TRGMII_FORCE_2000) || defined (CONFIG_GE1_TRGMII_FORCE_2600)
+#if defined (CONFIG_GE1_RGMII_FORCE_1000) || defined (CONFIG_GE1_TRGMII_FORCE_1200) 
 #if defined (CONFIG_RALINK_MT7621)
-	setup_internal_gsw();
 	/*MT7530 Init*/
-#elif defined (CONFIG_ARCH_MT7623)
-#if defined (CONFIG_GE1_TRGMII_FORCE_2000) || defined (CONFIG_GE1_TRGMII_FORCE_2600)        
-	*(volatile u_long *)(RALINK_SYSCTL_BASE+0x2c) |=  (1<<11);
-#else
-	*(volatile u_long *)(RALINK_SYSCTL_BASE+0x2c) &= ~(1<<11);
-#endif
 	setup_internal_gsw();
-#if 0
-	trgmii_calibration_7623();
-	trgmii_calibration_7530();
-	//*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) |= (0x1f << 24);     //Just only for 312.5/325MHz
-	//*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0340) = 0x00020000;
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0304) &= 0x3fffffff;         // RX clock gating in MT7623
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300) |= 0x80000000;         // Assert RX  reset in MT7623
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300 )      &= 0x7fffffff;   // Release RX reset in MT7623
-	*(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0300 +0x04) |= 0xC0000000;   // Disable RX clock gating in MT7623
-/*GE1@125MHz(RGMII mode) TX delay adjustment*/
-#endif
-#if defined (CONFIG_GE1_RGMII_FORCE_1000)
-        *(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0350) = 0x55;
-        *(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0358) = 0x55;
-        *(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0360) = 0x55;
-        *(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0368) = 0x55;
-        *(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0370) = 0x55;
-        *(volatile u_long *)(ETHDMASYS_ETH_SW_BASE+0x0378) = 0x855;
-#endif
-
-	
-#elif defined (CONFIG_MT7623_FPGA)	/* Nelson: remove for bring up, should be added!!! */
-	setup_fpga_gsw();
 #else
 	sysRegWrite(MDIO_CFG, INIT_VALUE_OF_FORCE_1000_FD);
 #endif
@@ -6334,7 +4551,7 @@ void fe_sw_init(void)
 
 	// Case5: RT388x/MT7621 GE2 + GigaSW
 #if defined (CONFIG_GE2_RGMII_FORCE_1000)
-#if defined (CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)
+#if defined (CONFIG_RALINK_MT7621)
 	setup_external_gsw();
 #else
 	sysRegWrite(MDIO_CFG2, INIT_VALUE_OF_FORCE_1000_FD);
@@ -6345,8 +4562,27 @@ void fe_sw_init(void)
 #if defined (CONFIG_RAETH_ROUTER) || defined (CONFIG_100PHY)
 
 	//set GMAC to MII or RvMII mode
+#if defined (CONFIG_RALINK_RT3883)
+	regValue = sysRegRead(SYSCFG1);
+#if defined (CONFIG_GE1_MII_FORCE_100) || defined (CONFIG_GE1_MII_AN)
+	regValue &= ~(0x3 << 12);
+	regValue |= 0x1 << 12; // GE1 MII Mode
+#elif defined (CONFIG_GE1_RVMII_FORCE_100)
+	regValue &= ~(0x3 << 12);
+	regValue |= 0x2 << 12; // GE1 RvMII Mode
+#endif 
 
-#elif defined (CONFIG_RALINK_MT7621) || defined (CONFIG_ARCH_MT7623)
+#if defined (CONFIG_GE2_MII_FORCE_100) || defined (CONFIG_GE2_MII_AN) 
+	regValue &= ~(0x3 << 14);
+	regValue |= 0x1 << 14; // GE2 MII Mode
+#elif defined (CONFIG_GE2_RVMII_FORCE_100)
+	regValue &= ~(0x3 << 14);
+	regValue |= 0x2 << 14; // GE2 RvMII Mode
+#endif 
+	sysRegWrite(SYSCFG1, regValue);
+#endif // CONFIG_RALINK_RT3883 //
+
+#elif defined (CONFIG_RALINK_MT7621)
 
 #if defined (CONFIG_GE1_MII_FORCE_100)
 	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x5e337);//(P0, Force mode, Link Up, 100Mbps, Full-Duplex, FC ON)
@@ -6357,13 +4593,13 @@ void fe_sw_init(void)
 #if defined (CONFIG_GE1_MII_AN) || defined (CONFIG_GE1_RGMII_AN)
 	enable_auto_negotiate(1);
 #if defined (CONFIG_RALINK_MT7621)
-	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x21056300);//(P0, Auto mode)
+	sysRegWrite(RALINK_ETH_SW_BASE+0x100, 0x20056300);//(P0, Auto mode)
 #endif
 #endif
 #if defined (CONFIG_GE2_MII_AN) || defined (CONFIG_GE1_RGMII_AN)
 	enable_auto_negotiate(2);
 #if defined (CONFIG_RALINK_MT7621)
-	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x21056300);//(P1, Auto mode)
+	sysRegWrite(RALINK_ETH_SW_BASE+0x200, 0x20056300);//(P1, Auto mode)
 #endif
 #endif
 
@@ -6418,50 +4654,6 @@ void ra2882eth_cleanup_module(void)
 	csr_netlink_end();
 #endif
 }
-
-__attribute__((optimize("O0"))) inline void sysRegWrite(unsigned int phys, unsigned int val)
-{
-	unsigned int reg;
-	(*(volatile unsigned int *)PHYS_TO_K1(phys)) = (val);
-	reg=(*(volatile unsigned int *)((phys)));
-	return;
-}
-
-#ifdef	CONFIG_ETH_WIFI_OOM_DEBUG
-void raether_dump_pdma_info(void)
-{
-	unsigned int tx_cpu_idx, tx_dma_idx;
-	unsigned int rx_cpu_idx, rx_dma_idx;
-#if defined (CONFIG_ARCH_MT7623) && defined (CONFIG_RAETH_HW_LRO)
-	unsigned int rx_cpu_idx_1, rx_dma_idx_1;
-	unsigned int rx_cpu_idx_2, rx_dma_idx_2;
-	unsigned int rx_cpu_idx_3, rx_dma_idx_3;
-#endif
-	
-	tx_cpu_idx = sysRegRead(TX_CTX_IDX0);
-	tx_dma_idx = sysRegRead(TX_DTX_IDX0);
-	rx_cpu_idx = sysRegRead(RX_CALC_IDX0);
-	rx_dma_idx = sysRegRead(RX_DRX_IDX0);
-#if defined (CONFIG_ARCH_MT7623) && defined (CONFIG_RAETH_HW_LRO)
-	rx_cpu_idx_1 = sysRegRead(RX_CALC_IDX1);
-	rx_dma_idx_1 = sysRegRead(RX_DRX_IDX1);
-	rx_cpu_idx_2 = sysRegRead(RX_CALC_IDX2);
-	rx_dma_idx_2 = sysRegRead(RX_DRX_IDX2);
-	rx_cpu_idx_3 = sysRegRead(RX_CALC_IDX3);
-	rx_dma_idx_3 = sysRegRead(RX_DRX_IDX3);
-#endif
-
-	printk("[Raeth PDMA]TX CPU idx=0x%x, TX DMA idx=0x%x\n", tx_cpu_idx, tx_dma_idx);
-	printk("[Raeth PDMA]RX CPU idx=0x%x, RX DMA idx=0x%x\n", rx_cpu_idx, rx_dma_idx);
-#if defined (CONFIG_ARCH_MT7623)
-	printk("[Raeth PDMA]RX CPU idx1=0x%x, RX DMA idx1=0x%x\n", rx_cpu_idx_1, rx_dma_idx_1);
-	printk("[Raeth PDMA]RX CPU idx2=0x%x, RX DMA idx2=0x%x\n", rx_cpu_idx_2, rx_dma_idx_2);
-	printk("[Raeth PDMA]RX CPU idx3=0x%x, RX DMA idx3=0x%x\n", rx_cpu_idx_3, rx_dma_idx_3);
-#endif
-}
-EXPORT_SYMBOL(raether_dump_pdma_info);
-#endif	/* CONFIG_ETH_WIFI_OOM_DEBUG */
-
 EXPORT_SYMBOL(set_fe_dma_glo_cfg);
 module_init(ra2882eth_init);
 module_exit(ra2882eth_cleanup_module);

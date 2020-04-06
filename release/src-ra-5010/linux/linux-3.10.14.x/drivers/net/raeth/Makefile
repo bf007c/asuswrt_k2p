@@ -29,10 +29,6 @@ ifeq ($(CONFIG_RAETH_NETLINK),y)
 raeth-objs += ra_netlink.o
 endif
 
-ifeq ($(CONFIG_RAETH_HW_LRO),y)
-raeth-objs += raether_hwlro.o
-endif
-
 ifeq ($(CONFIG_RAETH_GMAC2),y)
 EXTRA_CFLAGS += -DCONFIG_PSEUDO_SUPPORT
 endif
@@ -51,4 +47,16 @@ endif
 
 ifeq ($(CONFIG_TASKLET_WORKQUEUE_SW),y)
 EXTRA_CFLAGS   += -DTASKLET_WORKQUEUE_SW
+endif
+
+ifeq ($(RTAC1200GA1),y)
+EXTRA_CFLAGS   += -DRTAC1200GA1
+endif
+
+ifeq ($(RTACRH26),y)
+EXTRA_CFLAGS   += -DRTACRH26
+endif
+
+ifeq ($(K2P),y)
+EXTRA_CFLAGS   += -DK2P
 endif

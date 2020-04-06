@@ -1,18 +1,17 @@
 config RAETH
         tristate "Ralink GMAC"
-	select RAETH_QDMA if ARCH_MT7623
         ---help---
           This driver supports Ralink gigabit ethernet family of
           adapters.
 
 config PDMA_NEW
         bool
-	default y if  (RALINK_MT7620 || RALINK_MT7621 || ARCH_MT7623)
+	default y if  (RALINK_MT7620 || RALINK_MT7621)
         depends on RAETH
 
 config RAETH_SCATTER_GATHER_RX_DMA
         bool
-	default y if (RALINK_MT7620 || RALINK_MT7621 || ARCH_MT7623)
+	default y if (RALINK_MT7620 || RALINK_MT7621)
         depends on RAETH
 
 
@@ -58,12 +57,10 @@ config RAETH_CHECKSUM_OFFLOAD
 #	 default n
 #        depends on RAETH
 
-#config RAETH_8023AZ_EEE
-#        bool "Enable Embeded Switch EEE"
-#	 default n
-#        depends on RAETH && (RALINK_MT7620 || RALINK_MT7621 || RALINK_MT7628)
-
-
+config RAETH_8023AZ_EEE
+        bool "Enable Embeded Switch EEE"
+	default n
+        depends on RAETH && (RALINK_MT7620 || RALINK_MT7621 || RALINK_MT7628)
 
 config 32B_DESC
         bool "32bytes TX/RX description"
@@ -75,27 +72,7 @@ config 32B_DESC
 config RAETH_LRO
         bool "LRO (Large Receive Offload )"
 	select INET_LRO
-        depends on RAETH && (RALINK_RT6855A || RALINK_MT7620 || RALINK_MT7621 || ARCH_MT7623)
-
-config RAETH_HW_LRO
-        bool "HW LRO (Large Receive Offload)"
-	default n
-        depends on RAETH && !RAETH_LRO
-
-config RAETH_HW_LRO_DBG
-        bool "HW LRO Debug"
-	default n
-	depends on RAETH_HW_LRO
-
-#config RAETH_HW_LRO_REASON_DBG
-#        bool "HW LRO Flush Reason Debug"
-#	default n
-#	depends on RAETH_HW_LRO
-
-#config RAETH_HW_LRO_AUTO_ADJ_DBG
-#        bool "HW LRO Auto Adjustment Debug"
-#	default y
-#	depends on RAETH_HW_LRO
+        depends on RAETH && (RALINK_RT6855A || RALINK_MT7620 || RALINK_MT7621 || RALINK_MT7628)
 
 config RAETH_HW_VLAN_TX
         bool "Transmit VLAN HW (DoubleVLAN is not supported)"
@@ -111,12 +88,7 @@ config RAETH_HW_VLAN_RX
 
 config RAETH_TSO
         bool "TSOV4 (Tcp Segmentaton Offload)"
-	depends on (RAETH_HW_VLAN_TX && (RALINK_RT6855 || RALINK_RT6855A || RALINK_MT7620))||((RALINK_MT7621 || ARCH_MT7623) &&(RAETH_HW_VLAN_TX || RAETH_GMAC2 ))
-
-config RAETH_TSO_DBG
-        bool "TSOV4 Debug"
-	default n
-	depends on RAETH_TSO
+	depends on (RAETH_HW_VLAN_TX && (RALINK_RT6855 || RALINK_RT6855A || RALINK_MT7620))||(RALINK_MT7621 &&(RAETH_HW_VLAN_TX || RAETH_GMAC2 )) 
 
 config RAETH_TSOV6
         bool "TSOV6 (Tcp Segmentaton Offload)"
@@ -126,19 +98,6 @@ config RAETH_RW_PDMAPTR_FROM_VAR
 	bool
 	default y if RALINK_RT6855A || RALINK_MT7620
         depends on RAETH
-
-
-config RAETH_DVT
-        bool "RAETH DVT"
-	depends on RAETH && (RALINK_MT7621 || ARCH_MT7623)
-	
-config RAETH_PDMA_DVT
-        bool "PDMA DVT"
-	depends on RAETH_DVT
-
-config RAETH_PDMA_LEGACY_MODE
-        bool "PDMA legacy mode"
-	depends on RAETH_PDMA_DVT
 
 #config RAETH_QOS
 #        bool "QoS Feature"
@@ -162,23 +121,12 @@ endchoice
 config RAETH_QDMA
         bool "Choose QDMA instead PDMA"
 	default n
-        depends on RAETH && (RALINK_MT7621)
-
-#config RAETH_QDMATX_QDMARX
-#        bool "Choose QDMA RX instead PDMA RX"
-#	default n
-#       depends on RAETH_QDMA && !RALINK_MT7621
-
-config RAETH_TX_RX_INT_SEPARATION 
-        bool
-        default y
- 	depends on RAETH_QDMA && ARCH_MT7623
+        depends on RAETH && RALINK_MT7621
 
 choice
         prompt "GMAC is connected to"
         depends on RAETH
         default GE1_RGMII_FORCE_1000
-        default GE1_TRGMII_FORCE_1200 if CHIP_MT7615E
 
 config  GE1_MII_FORCE_100
         bool "MII_FORCE_100 (10/100M Switch)"
@@ -199,48 +147,32 @@ config  GE1_RGMII_FORCE_1000
 
 config  GE1_RGMII_FORCE_1000
         bool "RGMII_FORCE_1000 (GigaSW, CPU)"
-        depends on (RALINK_MT7621 || ARCH_MT7623) && (!CHIP_MT7615E)
-	select RT_3052_ESW
-
-config  GE1_TRGMII_FORCE_1200
-        bool "TRGMII_FORCE_1200 (GigaSW, CPU)"
         depends on (RALINK_MT7621)
 	select RT_3052_ESW
 
-config  GE1_TRGMII_FORCE_2000
-        bool "TRGMII_FORCE_2000 (GigaSW, CPU, for MT7623 and MT7683)"
-        depends on (ARCH_MT7623)
-        select RT_3052_ESW
-
-config  GE1_TRGMII_FORCE_2600
-        bool "TRGMII_FORCE_2600 (GigaSW, CPU, MT7623 only)"
-        depends on (ARCH_MT7623)
-        select RT_3052_ESW
+#config  GE1_TRGMII_FORCE_1200
+#        bool "TRGMII_FORCE_1200 (GigaSW, CPU)"
+#        depends on (RALINK_MT7621)
+#	select RT_3052_ESW
 
 config  GE1_RGMII_AN
         bool "RGMII_AN (GigaPhy)"
-        depends on (RALINK_RT2880 || RALINK_RT3883 || RALINK_MT7621 || ARCH_MT7623) 
+        depends on (RALINK_RT2880 || RALINK_RT3883 || RALINK_MT7621) 
 
 config  GE1_RGMII_NONE
         bool "NONE (NO CONNECT)"
-        depends on (RALINK_MT7621 || ARCH_MT7623)
+        depends on (RALINK_MT7621)
 
 endchoice
 
-config HW_SFQ
-        bool "HW_SFQ"
-	default n
-        depends on RAETH_QDMA && (ARCH_MT7623)
-        
-        
 config  RT_3052_ESW
         bool "Ralink Embedded Switch"
 	default y
-        depends on RAETH && (RALINK_RT3052 || RALINK_RT3352 || RALINK_RT5350 || RALINK_RT6855 || RALINK_RT6855A || RALINK_MT7620 || RALINK_MT7621 || RALINK_MT7628 || ARCH_MT7623)
+        depends on (RALINK_RT3052 || RALINK_RT3352 || RALINK_RT5350 || RALINK_RT6855 || RALINK_RT6855A || RALINK_MT7620 || RALINK_MT7621 || RALINK_MT7628)
 
 config LAN_WAN_SUPPORT
         bool "LAN/WAN Partition"
-        depends on RAETH && (RAETH_ROUTER || RT_3052_ESW)
+        depends on RAETH_ROUTER || RT_3052_ESW
 
 config ETH_MEMORY_OPTIMIZATION
 	bool "Ethernet memory optimization"
@@ -330,7 +262,7 @@ config  MAC_TO_GIGAPHY_MODE_ADDR
 
 config RAETH_GMAC2
         bool "GMAC2 Support"
-        depends on RAETH && (RALINK_RT3883 || RALINK_MT7621 || ARCH_MT7623)
+        depends on RAETH && (RALINK_RT3883 || RALINK_MT7621)
 
 choice
         prompt "GMAC2 is connected to"
@@ -355,11 +287,11 @@ config  GE2_RGMII_FORCE_1000
 	select RALINK_SPI
 
 config  GE2_RGMII_AN
-        bool "RGMII_AN (External GigaPhy)"
+        bool "RGMII_AN (GigaPhy)"
         depends on RAETH_GMAC2
 
 config  GE2_INTERNAL_GPHY
-        bool "RGMII_AN (Internal GigaPhy)"
+        bool "Internal GigaPHY"
         depends on RAETH_GMAC2
 	select LAN_WAN_SUPPORT
 
@@ -406,25 +338,3 @@ default y if GE1_RGMII_AN || GE2_RGMII_AN
 config 100PHY
 bool
 default y if GE1_MII_AN || GE2_MII_AN
-
-#SKB alloc selection
-config ETH_SKB_ALLOC_SELECT
-        bool "SKB Allocation API Select"
-        default n
-choice
-	prompt "SKB Allocation API Selection"
-        depends on ETH_SKB_ALLOC_SELECT
-	default ETH_PAGE_ALLOC_SKB
-
-	config  ETH_SLAB_ALLOC_SKB
-		bool "SLAB skb allocation"
-
-	config  ETH_PAGE_ALLOC_SKB
-		bool "Page skb allocation"
-endchoice
-
-#OOM debug info
-config ETH_WIFI_OOM_DEBUG
-bool	"ETH WIFI OOM DEBUG"
-default n
-
