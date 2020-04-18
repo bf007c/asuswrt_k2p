@@ -2762,9 +2762,9 @@ start_8021x(void)
 		else if (!strcmp(word, WIF_5G))
 		{
 			if (!strncmp(word, "rai", 3))	// iNIC
-				exec_8021x_start(1, 1);
-			else
 				exec_8021x_start(1, 0);
+			else
+				exec_8021x_start(1, 1);
 		}
 #endif	/* RTCONFIG_HAS_5G */
 	}
@@ -2798,9 +2798,9 @@ stop_8021x(void)
 		else if (!strcmp(word, WIF_5G))
 		{
 			if (!strncmp(word, "rai", 3))	// iNIC
-				exec_8021x_stop(1, 1);
-			else
 				exec_8021x_stop(1, 0);
+			else
+				exec_8021x_stop(1, 1);
 		}
 #endif	/* RTCONFIG_HAS_5G */
 	}
