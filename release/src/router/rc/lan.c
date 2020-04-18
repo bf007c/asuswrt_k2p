@@ -1184,9 +1184,9 @@ gen_ra_config(const char* wif)
 			else if (!strcmp(word, nvram_safe_get("wl1_ifname"))) // 5G
 			{
 				if (!strncmp(word, "rai", 3))	// iNIC
-					gen_ralink_config(1, 1);
-				else
 					gen_ralink_config(1, 0);
+				else
+					gen_ralink_config(1, 1);
 			}
 		}
 	}
