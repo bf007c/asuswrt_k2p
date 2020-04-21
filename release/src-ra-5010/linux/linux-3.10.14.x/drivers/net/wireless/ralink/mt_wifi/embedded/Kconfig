@@ -18,7 +18,7 @@ if MT_WIFI
 menu "WiFi Generic Feature Options"
 choice
 		prompt "EEPROM Type of 1st Card"
-		depends on ! RT_FIRST_IF_NONE
+		depends on ! FIRST_IF_NONE
 
 		config RT_FIRST_IF_EEPROM_FLASH
 		bool "FLASH"
@@ -29,12 +29,12 @@ endchoice
 
 config RT_FIRST_CARD_EEPROM
 		string
-		depends on ! RT_FIRST_IF_NONE
+		depends on ! FIRST_IF_NONE
 		default "flash" if RT_FIRST_IF_EEPROM_FLASH
 
 choice
 		prompt "EEPROM Type of 2nd Card"
-		depends on ! RT_SECOND_IF_NONE
+		depends on ! SECOND_IF_NONE
 
 		config RT_SECOND_IF_EEPROM_FLASH
 		bool "FLASH"
@@ -49,7 +49,7 @@ endchoice
 
 config RT_SECOND_CARD_EEPROM
 		string
-		depends on ! RT_SECOND_IF_NONE
+		depends on ! SECOND_IF_NONE
 		default "prom" if RT_SECOND_IF_EEPROM_PROM
 		default "efuse" if RT_SECOND_IF_EEPROM_EFUSE
 		default "flash" if RT_SECOND_IF_EEPROM_FLASH
@@ -63,7 +63,7 @@ config RT_THIRD_CARD_EEPROM
 	
 config MULTI_INF_SUPPORT
 		bool
-		default y if !RT_FIRST_IF_NONE && !RT_SECOND_IF_NONE
+		default y if !FIRST_IF_NONE && !SECOND_IF_NONE
 		
 config WIFI_BASIC_FUNC
 	bool "Basic Functions"
@@ -375,7 +375,7 @@ config FDB_SUPPORT
 
 choice
         prompt "PA LNA Type of 1st Card"
-		depends on ! RT_FIRST_IF_NONE
+		depends on ! FIRST_IF_NONE
 		
 		config FIRST_IF_EPAELNA
 		bool "ePAeLNA"
@@ -388,7 +388,7 @@ choice
 endchoice
 choice
         prompt "PA LNA Type of 2nd Card"
-		depends on ! RT_SECOND_IF_NONE
+		depends on ! SECOND_IF_NONE
 		
 		config SECOND_IF_EPAELNA
 		bool "ePAeLNA"
