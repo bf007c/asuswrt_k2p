@@ -770,9 +770,9 @@ int main(int argc, char *argv[])
     char prefix_name[IFNAMSIZ+1];
     
     if (strcmp(argv[0], "rtinicapd") == 0)
-	    strcpy(prefix_name, "rai");
-    else
 	    strcpy(prefix_name, "ra");
+    else
+	    strcpy(prefix_name, "rax");
 	
 	for (;;)
     {
