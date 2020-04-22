@@ -2772,6 +2772,14 @@ start_8021x(void)
 	return 0;
 }
 
+#if defined(RTACRH26)
+int start_rax0(void)
+{
+	doSystem("ifconfig rax0 up");
+	return 0;
+}
+#endif	/* RTACRH26 */
+
 int
 exec_8021x_stop(int band, int is_iNIC)
 {
@@ -7327,6 +7335,9 @@ start_services(void)
 	start_nas();
 #elif defined(RTCONFIG_RALINK) || defined(RTCONFIG_REALTEK)
 	start_8021x();
+#if defined(RTACRH26)
+	start_rax0();
+#endif	/* RTACRH26 */
 #endif
 	start_wps();
 #ifdef RTCONFIG_WPS
