@@ -3761,7 +3761,7 @@ VOID RTMPCommSiteSurveyData(
 		sprintf(msg + strlen(msg), "%-3s", " In");
 
 	/* SSID Length */
-	sprintf(msg + strlen(msg), " %-8d", pBss->SsidLen);
+//	sprintf(msg + strlen(msg), " %-8d", pBss->SsidLen);
 
 	//sprintf(msg + strlen(msg), "\n");
 	return;
@@ -4111,17 +4111,17 @@ max_len += OWETRANSIE_LINE_LEN;
 		return;
 	}
 
-	//sprintf(msg, "%s", "\n");
+	sprintf(msg, "%s", "\n");
 	//sprintf(msg + strlen(msg), "Total=%-4d", pAdapter->ScanTab.BssNr);
 	//sprintf(msg + strlen(msg), "%s", "\n");
-	sprintf(msg + strlen(msg), "%-4s%-4s%-33s%-20s%-23s%-9s%-7s%-7s%-3s%-8s\n",
-			"No", "Ch", "SSID", "BSSID", "Security", "Signal(%)", "W-Mode", " ExtCH", " NT", " SSID_Len");
+	sprintf(msg + strlen(msg), "%-4s%-33s%-20s%-23s%-9s%-7s%-7s%-3s\n",
+			"Ch", "SSID", "BSSID", "Security", "Signal(%)", "W-Mode", "ExtCH", "NT");
 #ifdef WSC_INCLUDED
-	sprintf(msg + strlen(msg) - 1, "%-4s%-5s\n", " WPS", " DPID");
+	sprintf(msg + strlen(msg) - 1, "%-4s%-5s\n", "WPS", "DPID");
 #endif /* WSC_INCLUDED */
-	sprintf(msg + strlen(msg) - 1, "%-10s\n", " BcnRept");
+//	sprintf(msg + strlen(msg) - 1, "%-10s\n", "BcnRept");
 #ifdef APCLI_OWE_SUPPORT
-		sprintf(msg + strlen(msg) - 1, "%-10s\n", " OWETranIe");
+//		sprintf(msg + strlen(msg) - 1, "%-10s\n", "OWETranIe");
 #endif /* APCLI_OWE_SUPPORT */
 
 	WaitCnt = 0;
@@ -4147,7 +4147,7 @@ max_len += OWETRANSIE_LINE_LEN;
 			break;
 
 		/*No*/
-		sprintf(msg + strlen(msg), "%-4d", i);
+//		sprintf(msg + strlen(msg), "%-4d", i);
 		RTMPCommSiteSurveyData(msg, pBss, TotalLen);
 #ifdef WSC_INCLUDED
 
@@ -4165,13 +4165,13 @@ max_len += OWETRANSIE_LINE_LEN;
 			sprintf(msg + strlen(msg), "%-5s", " ");
 
 #endif /* WSC_INCLUDED */
-		sprintf(msg + strlen(msg), "%-10s\n", pBss->FromBcnReport ? " YES" : " NO");
+//		sprintf(msg + strlen(msg), "%-10s\n", pBss->FromBcnReport ? " YES" : " NO");
 
 #ifdef APCLI_OWE_SUPPORT
-	if (pBss->bhas_owe_trans_ie)
-		sprintf(msg + strlen(msg), "%-10s\n", " YES");
-	else
-		sprintf(msg + strlen(msg), "%-10s\n", " NO");
+//	if (pBss->bhas_owe_trans_ie)
+		//sprintf(msg + strlen(msg), "%-10s\n", " YES");
+//	else
+		//sprintf(msg + strlen(msg), "%-10s\n", " NO");
 #else
 	sprintf(msg + strlen(msg), "\n");
 #endif

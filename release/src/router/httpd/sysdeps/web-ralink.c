@@ -1527,96 +1527,28 @@ static int wl_scan(int eid, webs_t wp, int argc, char_t **argv, int unit)
 		return 0;
 	}
 	memset(header, 0, sizeof(header));
-	//snprintf(header, sizeof(header), "%-3s%-33s%-18s%-8s%-15s%-9s%-8s%-2s\n", "Ch", "SSID", "BSSID", "Enc", "Auth", "Siganl(%)", "W-Mode", "NT");
-#if 0// defined(RTN14U)
-	snprintf(header, sizeof(header), "%-4s%-33s%-18s%-9s%-16s%-9s%-8s%-4s%-5s\n", "Ch", "SSID", "BSSID", "Enc", "Auth", "Siganl(%)", "W-Mode"," WPS", " DPID");
-#else
-	snprintf(header, sizeof(header), "%-4s%-33s%-18s%-9s%-16s%-9s%-8s\n", "Ch", "SSID", "BSSID", "Enc", "Auth", "Siganl(%)", "W-Mode");
-#endif
+	snprintf(header, sizeof(header), "%-4s%-33s%-20s%-23s%-9s%-7s%-7s%-3s%-4s%-5s\n", 
+			"Ch", "SSID", "BSSID", "Security", "Signal(%)", "W-Mode", "ExtCH", "NT", "WPS", "DPID");
 	dbg("\n%s", header);
 	if (wrq.u.data.length > 0)
 	{
-#if defined(RTN65U)
-		if (unit == 0 && get_model() == MODEL_RTN65U)
-		{
-			char *encryption;
-			SITE_SURVEY_RT3352_iNIC *pSsap, *ssAP;
-
-			pSsap = ssAP = (SITE_SURVEY_RT3352_iNIC *) (1 /* '\n' */ + wrq.u.data.pointer +  sizeof(SITE_SURVEY_RT3352_iNIC) /* header */);
-			while(((unsigned int)wrq.u.data.pointer + wrq.u.data.length) > (unsigned int) ssAP)
-			{
-				ssAP->channel   [sizeof(ssAP->channel)    -1] = '\0';
-				ssAP->ssid      [32                         ] = '\0';
-				ssAP->bssid     [17                         ] = '\0';
-				ssAP->encryption[sizeof(ssAP->encryption) -1] = '\0';
-				if((encryption = strchr(ssAP->authmode, '/')) != NULL)
-				{
-					memmove(ssAP->encryption, encryption +1, sizeof(ssAP->encryption) -1);
-					memset(encryption, ' ', sizeof(ssAP->authmode) - (encryption - ssAP->authmode));
-					*encryption = '\0';
-				}
-				ssAP->authmode  [sizeof(ssAP->authmode)   -1] = '\0';
-				ssAP->signal    [sizeof(ssAP->signal)     -1] = '\0';
-				ssAP->wmode     [sizeof(ssAP->wmode)      -1] = '\0';
-				ssAP->extch     [sizeof(ssAP->extch)      -1] = '\0';
-				ssAP->nt        [sizeof(ssAP->nt)         -1] = '\0';
-				ssAP->wps       [sizeof(ssAP->wps)        -1] = '\0';
-				ssAP->dpid      [sizeof(ssAP->dpid)       -1] = '\0';
-
-				convertToUpper(ssAP->bssid);
-				ssAP++;
-				apCount++;
-			}
-
-			if (apCount)
-			{
-				retval += websWrite(wp, "[");
-				for (i = 0; i < apCount; i++)
-				{
-					dbg("%-4s%-33s%-18s%-9s%-16s%-9s%-8s\n",
-						pSsap[i].channel,
-						pSsap[i].ssid,
-						pSsap[i].bssid,
-						pSsap[i].encryption,
-						pSsap[i].authmode,
-						pSsap[i].signal,
-						pSsap[i].wmode
-					);
-
-					memset(ssid_str, 0, sizeof(ssid_str));
-					char_to_ascii(ssid_str, trim_r(pSsap[i].ssid));
-
-					if (!i)
-						retval += websWrite(wp, "[\"%s\", \"%s\"]", ssid_str, pSsap[i].bssid);
-					else
-						retval += websWrite(wp, ", [\"%s\", \"%s\"]", ssid_str, pSsap[i].bssid);
-				}
-				retval += websWrite(wp, "]");
-				dbg("\n");
-			}
-			else
-				retval += websWrite(wp, "[]");
-			return retval;
-		}
-#endif
 		ssap=(SSA *)(wrq.u.data.pointer+strlen(header)+1);
 		int len = strlen(wrq.u.data.pointer+strlen(header))-1;
 		char *sp, *op;
- 		op = sp = wrq.u.data.pointer+strlen(header)+1;
+ 		op = sp = wrq.u.data.pointer+strlen(header)+2;
 		while (*sp && ((len - (sp-op)) >= 0))
 		{
 			ssap->SiteSurvey[i].channel[3] = '\0';
 			ssap->SiteSurvey[i].ssid[32] = '\0';
-			ssap->SiteSurvey[i].bssid[17] = '\0';
-			ssap->SiteSurvey[i].encryption[8] = '\0';
-			ssap->SiteSurvey[i].authmode[15] = '\0';
+			ssap->SiteSurvey[i].bssid[19] = '\0';
+			ssap->SiteSurvey[i].security[22] = '\0';
 			ssap->SiteSurvey[i].signal[8] = '\0';
-			ssap->SiteSurvey[i].wmode[7] = '\0';
-#if 0//defined(RTN14U)
+			ssap->SiteSurvey[i].wmode[6] = '\0';
+			ssap->SiteSurvey[i].extch[6] = '\0';
+			ssap->SiteSurvey[i].nt[2] = '\0';
 			ssap->SiteSurvey[i].wps[3] = '\0';
 			ssap->SiteSurvey[i].dpid[4] = '\0';
-#endif
-			sp+=strlen(header);
+			sp+=strlen(header)+1;
 			apCount=++i;
 		}
 		if (apCount)
@@ -1625,23 +1557,17 @@ static int wl_scan(int eid, webs_t wp, int argc, char_t **argv, int unit)
 			for (i = 0; i < apCount; i++)
 			{
 			   	dbg("\napCount=%d\n",i);
-				dbg(
-#if 0//defined(RTN14U)
-				"%-4s%-33s%-18s%-9s%-16s%-9s%-8s%-4s%-5s\n",
-#else
-				"%-4s%-33s%-18s%-9s%-16s%-9s%-8s\n",
-#endif
+				dbg("%-4s%-33s%-20s%-23s%-9s%-7s%-7s%-3s%-4s%-5s\n",
 					ssap->SiteSurvey[i].channel,
 					(char*)ssap->SiteSurvey[i].ssid,
 					ssap->SiteSurvey[i].bssid,
-					ssap->SiteSurvey[i].encryption,
-					ssap->SiteSurvey[i].authmode,
+					ssap->SiteSurvey[i].security,
 					ssap->SiteSurvey[i].signal,
-					ssap->SiteSurvey[i].wmode
-#if 0//defined(RTN14U)
-					, ssap->SiteSurvey[i].wps
-					, ssap->SiteSurvey[i].dpid
-#endif
+					ssap->SiteSurvey[i].wmode,
+					ssap->SiteSurvey[i].extch,
+					ssap->SiteSurvey[i].nt,
+					ssap->SiteSurvey[i].wps,
+					ssap->SiteSurvey[i].dpid
 				);
 
 				memset(ssid_str, 0, sizeof(ssid_str));
